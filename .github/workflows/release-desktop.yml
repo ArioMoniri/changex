@@ -1,0 +1,75 @@
+## OPTIONAL desktop bundle. The primary review UI is `changex view` (zero-install
+## local webserver) + the single-file HTML report — the Tauri app is just a
+## double-clickable shell over the same renderer. This workflow is gated to manual
+## dispatch / version tags so it never runs on ordinary pushes.
+##
+## Code signing / notarization is applied ONLY if the corresponding secrets exist;
+## with no secrets it produces an UNSIGNED bundle (fine for local/dev use, but macOS
+## Gatekeeper will warn). See docs/CI-AND-SECRETS.md for the exact secrets.
+##
+## Caveat: the app currently shells out to a `changex` CLI on PATH; it does not yet
+## bundle the Python core as a sidecar, so a released bundle still needs ChangeX
+## installed. Treat this as a build/signing scaffold, not a finished installer.
+
+name: Desktop bundle (Tauri, optional)
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # attach artifacts to the tagged release
+
+jobs:
+  bundle:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos-latest, ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Linux webview + image deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf \
+            build-essential curl wget file libssl-dev libgtk-3-dev imagemagick
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend deps
+        working-directory: packages/viewer
+        run: npm ci
+
+      - name: Generate app icons (placeholder logo — swap in a real one for production)
+        working-directory: packages/viewer
+        shell: bash
+        run: |
+          IM=$(command -v magick || command -v convert)
+          "$IM" -size 1024x1024 xc:'#4f46e5' -fill white -gravity center \
+            -pointsize 420 -font Helvetica -annotate 0 'CX' src-tauri/icons/_source.png
+          npx --yes @tauri-apps/cli@^2 icon src-tauri/icons/_source.png
+
+      - name: Build (and sign/notarize if secrets are present)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          # --- macOS signing + notarization (used only if APPLE_CERTIFICATE is set) ---
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          projectPath: packages/viewer
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          releaseName: ${{ github.ref_type == 'tag' && format('ChangeX Viewer {0}', github.ref_name) || '' }}
+          releaseDraft: true
