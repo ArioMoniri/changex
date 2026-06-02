@@ -159,6 +159,37 @@ def save_tracked(handle: str, out: str) -> dict[str, Any]:
 
 
 @mcp.tool()
+def reject(handle: str, op_id: str) -> dict[str, Any]:
+    """Reject a change by op_id so its revision is dropped from the saved .docx.
+
+    Returns {op_id, status, reverted, active_ops, verified}. This is the human/
+    agent review gate: a rejected op is non-destructively reverted in the journal
+    (the rejection is itself audited) and excluded from the next save_tracked, so
+    its tracked-change revision is genuinely absent from the rendered Word file.
+    Use accept(handle, op_id) to restore it. Reverting twice is a no-op.
+    """
+    try:
+        return tools.reject(STORE, handle=handle, op_id=op_id)
+    except (tools.ToolError, ValueError) as exc:
+        return _coerce_error(exc)
+
+
+@mcp.tool()
+def accept(handle: str, op_id: str) -> dict[str, Any]:
+    """Accept (un-reject) a previously rejected change so its revision is kept.
+
+    Returns {op_id, status, reverted, active_ops, verified}. The accept side of
+    review: it un-reverts the op (also audited) so it rejoins the active set and
+    its revision reappears in the next save_tracked. Accepting an op that was
+    never rejected is a no-op.
+    """
+    try:
+        return tools.accept(STORE, handle=handle, op_id=op_id)
+    except (tools.ToolError, ValueError) as exc:
+        return _coerce_error(exc)
+
+
+@mcp.tool()
 def get_changes(handle: str) -> dict[str, Any]:
     """Return the structured provenance journal: every edit with full attribution.
 

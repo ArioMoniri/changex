@@ -16,8 +16,10 @@ The single highest-value, lowest-risk end-to-end slice:
 Two access paths ship together so it's native to *any* model: **MCP** (active
 capture, for tool-capable models — Claude / Gemini / OpenAI / local-via-MCP) and the
 **`open`/`seal` CLI** (passive capture, for any model including local/offline ones
-that just read and write the file). Everything else (xlsx, pptx, interactive
-webserver, desktop app) extends outward from that spine.
+that just read and write the file). The spreadsheet (`.xlsx`, `.csv`) and presentation
+(`.pptx`) formats and the interactive webserver have since **landed** (journal +
+non-native overlay; see M3/M4 and M5 below); the desktop app and legacy `.doc` ingest
+remain the outstanding extensions.
 
 ---
 
@@ -59,22 +61,35 @@ and anyone can see them in a shareable report.
 - **Acceptance:** hand-edit the doc between open and save; ChangeX reconstructs the
   correct op stream and renders equivalent tracked changes.
 
-## M3 — Spreadsheets (`.xlsx`, `.csv`)
+## M3 — Spreadsheets (`.xlsx`, `.csv`) — ✅ Available
+
+> **Status: landed.** `.xlsx` and `.csv` are reachable from the CLI and MCP today.
+> Both produce the same `.changex` journal as docx and feed the same
+> `review`/`view` surfaces. Because spreadsheets have **no native track-changes**,
+> the in-file review is a **non-native overlay**, not host-app accept/reject — see
+> [FIDELITY.md](FIDELITY.md) §1.
+
 **Goal:** cell/formula/row-level tracking with a usable review surface.
 
 - `core/adapters/xlsx` (openpyxl): cell/formula/row ops; render = colored cells +
-  threaded comments + generated "Changes" audit sheet.
-- `core/adapters/csv`: row/cell ops; unified + side-by-side redline.
-- **Acceptance:** track formula and value edits across sheets; audit sheet lists
-  every change with model + timestamp.
+  threaded comments + generated "Changes" audit sheet. ✅
+- `core/adapters/csv`: row/cell ops; unified + side-by-side redline. ✅
+- **Acceptance (met):** track formula and value edits across sheets; audit sheet
+  lists every change with model + timestamp.
 
-## M4 — Presentations (`.pptx`)
+## M4 — Presentations (`.pptx`) — ✅ Available
+
+> **Status: landed.** `.pptx` is reachable from the CLI and MCP today, with the
+> same journal + `review`/`view` surfaces. PowerPoint has **no native
+> track-changes format**, so "accept/reject" is reconstructed from the journal via
+> a **non-native overlay**, not a PowerPoint feature — see [FIDELITY.md](FIDELITY.md) §1.
+
 **Goal:** semantic change tracking despite no native track-changes format.
 
 - `core/adapters/pptx` (python-pptx): slide/shape/text ops; render = revision
-  callouts + generated "Revisions" summary slide + notes.
-- **Acceptance:** add/delete/edit slides and shapes; reviewer can see exactly what
-  changed per slide and read the journal.
+  callouts + generated "Revisions" summary slide + notes. ✅
+- **Acceptance (met):** add/delete/edit slides and shapes; reviewer can see exactly
+  what changed per slide and read the journal.
 
 ## M5 — Interactive viewer (local webserver) + optional desktop app + legacy `.doc`
 **Goal:** a friendly, zero-install review surface, with a desktop app for those who
@@ -112,7 +127,9 @@ want one.
 - **M2 early** because coverage (passive diff) is what makes the tool trustworthy
   beyond cooperative agents.
 - **xlsx/pptx (M3/M4)** are the underserved markets — sequenced after the spine so
-  they reuse the journal + render contracts rather than reinventing them.
+  they reuse the journal + render contracts rather than reinventing them. **Both have
+  since landed** as journal + non-native overlay (no native track-changes exists for
+  those formats).
 - **Viewer (M5)** is UX polish on top of a proven core, not a prerequisite.
 
 ## Non-goals (initially)

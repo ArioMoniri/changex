@@ -48,6 +48,16 @@ class NodeNotFoundError(AdapterError):
     """Raised when an op targets a ``node_id`` not present in the model."""
 
 
+class UnsupportedFormatError(AdapterError):
+    """Raised when no registered adapter handles a path's file extension.
+
+    Emitted by :func:`changex_core.adapters.load_adapter` when the (sanitized)
+    path's suffix is not one of the registered formats (``.docx`` / ``.xlsx`` /
+    ``.csv`` / ``.pptx``). The message lists the supported suffixes so the caller
+    can correct the input.
+    """
+
+
 class DocumentAdapter(ABC):
     """Abstract base for format adapters (docx implemented; others reserved)."""
 

@@ -38,7 +38,9 @@ drop one of the config blocks below into your client, restart the client.
 | `open_tracked(path, agent_context?, author?)` | Open a `.docx`; returns `{handle, summary, baseline_sha256, session_id}`. Pass `agent_context={"model","vendor"}` so revisions are authored by your model. |
 | `get_outline(handle, cursor?, limit?)` | Bounded, paginated paragraph list → discover `node_id`s. Returns `{nodes:[{node_id,kind,preview,style}], next_cursor, total}`. |
 | `edit(handle, op, node_id, …)` | One small tracked edit. `op` ∈ `replace_text` / `insert_text_after` / `delete_text` / `set_paragraph_style`. Returns `{op_id, seq, node_id, provenance_source}`. |
-| `save_tracked(handle, out)` | Write the native-revisions `.docx`; returns `{tracked_path, changex_path, ops, verified}`. |
+| `reject(handle, op_id)` | Reject a change by `op_id`: the op is non-destructively reverted (the rejection itself is audited) and excluded from the next `save_tracked`, so its revision is genuinely absent from the saved `.docx`. Returns `{op_id, status, reverted, active_ops, verified}`. |
+| `accept(handle, op_id)` | Accept (un-reject) a previously rejected `op_id` so its revision is kept and reappears on the next `save_tracked`. Returns `{op_id, status, reverted, active_ops, verified}`. |
+| `save_tracked(handle, out)` | Write the native-revisions `.docx` as a pure projection of the journal's **non-reverted** events; returns `{tracked_path, changex_path, ops, verified}` (`ops` = active op count). |
 | `get_changes(handle)` | The structured provenance journal: `{session_id, events:[…], count, verified}`. |
 | `render_review(handle, fmt?)` | Human-readable redline; `fmt` ∈ `html` / `markdown`. Returns `{format, report}`. |
 
@@ -169,11 +171,17 @@ edit({ "handle": "ab12…", "op": "replace_text",
 edit({ "handle": "ab12…", "op": "set_paragraph_style",
        "node_id": "p:00000001", "before": "Normal", "style": "Heading 1" })
 
-// 4. save → native Word revisions + .changex
+// 4. review: reject (drop) or accept (restore) individual changes by op_id
+reject({ "handle": "ab12…", "op_id": "…op-id-of-edit-2…" })
+// → { "op_id": "…", "status": "rejected", "reverted": true, "active_ops": 1, "verified": true }
+accept({ "handle": "ab12…", "op_id": "…op-id-of-edit-2…" })
+// → { "op_id": "…", "status": "accepted", "reverted": false, "active_ops": 2, "verified": true }
+
+// 5. save → native Word revisions + .changex (only non-reverted ops are rendered)
 save_tracked({ "handle": "ab12…", "out": "/abs/report.tracked.docx" })
 // → { "tracked_path": "…", "changex_path": "…/report.changex", "ops": 2, "verified": true }
 
-// 5. review / audit
+// 6. review / audit
 render_review({ "handle": "ab12…", "fmt": "markdown" })
 get_changes({ "handle": "ab12…" })
 ```

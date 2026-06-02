@@ -1,0 +1,112 @@
+# ChangeX — root project.
+#
+# This file does TWO jobs at once:
+#
+#   1. It declares the **uv workspace** ([tool.uv.workspace]) so the two
+#      installable packages — packages/core (changex-core) and packages/mcp
+#      (changex-mcp) — resolve against each other from the local tree during
+#      development (`uv sync`). `changex-mcp` already pins
+#      `changex-core = { workspace = true }`, so a single `uv sync` at the repo
+#      root wires the whole thing up with one lockfile.
+#
+#   2. It IS the `changex` **meta package** ([project]) — a tiny umbrella whose
+#      only dependencies are `changex-core` + `changex-mcp`. Installing it pulls
+#      both real packages and re-exposes both console scripts, so the public,
+#      memorable commands work from a single name:
+#
+#          uv tool install changex     # or: pipx install changex / pip install changex
+#          changex --help              #   the CLI (from changex-core)
+#          changex-mcp                 #   the MCP stdio server (from changex-mcp)
+#
+#      and the zero-install form:  uvx changex … / uvx changex-mcp.
+#
+# There is no source under this package: it is pure aggregation. The two
+# [project.scripts] entries below re-point at the sub-packages' real entry
+# points so the commands exist even if a resolver only installs the meta wheel.
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "changex"
+version = "0.1.0"
+description = "ChangeX: provenance-first change tracking for AI document edits. Meta package — installs the core CLI (changex) and the MCP server (changex-mcp)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "ChangeX" }]
+keywords = [
+    "docx", "xlsx", "pptx", "csv", "track-changes", "provenance",
+    "mcp", "ooxml", "event-sourcing", "ai", "llm",
+]
+classifiers = [
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: Apache Software License",
+    "Topic :: Office/Business :: Office Suites",
+    "Topic :: Software Development :: Version Control",
+]
+# The umbrella: pull in both real packages. `uv tool install changex`,
+# `pipx install changex`, and `pip install changex` therefore land both the
+# CLI and the MCP server in one step.
+dependencies = [
+    "changex-core>=0.1.0",
+    "changex-mcp>=0.1.0",
+]
+
+# Re-expose BOTH commands from the meta package. They resolve to the same entry
+# points the sub-packages declare, so `changex` and `changex-mcp` are on PATH
+# after installing the single `changex` name.
+[project.scripts]
+changex = "changex_core.cli:main"
+changex-mcp = "changex_mcp.server:main"
+
+[project.optional-dependencies]
+# `pip install "changex[dev]"` / `uv sync --extra dev` pulls the test + lint
+# toolchain used across the workspace.
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1",
+    "mypy>=1.5",
+]
+
+[project.urls]
+Homepage = "https://github.com/ArioMoniri/changex"
+Documentation = "https://github.com/ArioMoniri/changex/tree/main/docs"
+Repository = "https://github.com/ArioMoniri/changex"
+
+# --------------------------------------------------------------------------- #
+# uv workspace.
+#
+# `uv sync` at the repo root resolves the meta package together with both
+# members against a single lockfile. The members keep their own pyproject.toml
+# (they are independently publishable); listing them here makes the local tree
+# the source of truth during development.
+# --------------------------------------------------------------------------- #
+[tool.uv.workspace]
+members = ["packages/core", "packages/mcp"]
+
+# During development, resolve the two packages from the workspace tree rather
+# than from PyPI, so `uv sync` builds the meta package against the local source.
+[tool.uv.sources]
+changex-core = { workspace = true }
+changex-mcp = { workspace = true }
+
+# The meta package ships no Python module of its own — it is pure aggregation.
+# Tell hatchling there are no packages to collect so the wheel builds cleanly.
+[tool.hatch.build.targets.wheel]
+bypass-selection = true
+
+[tool.hatch.build.targets.sdist]
+include = ["pyproject.toml", "README.md"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_ignores = true
+ignore_missing_imports = true

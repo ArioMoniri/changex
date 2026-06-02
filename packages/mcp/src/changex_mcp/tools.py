@@ -30,6 +30,7 @@ from changex_core.adapters.base import (
     OversizedOpError,
 )
 from changex_core.journal.events import Target
+from changex_core.journal.journal import JournalError
 from changex_core.ops.vocabulary import (
     Op,
     StyleChange,
@@ -40,6 +41,7 @@ from changex_core.ops.vocabulary import (
 )
 from changex_core.paths import safe_path
 from changex_core.render.html import render_html, render_markdown
+from changex_core.render.save import save_active
 
 from changex_mcp.outline import build_outline
 from changex_mcp.provenance import (
@@ -273,18 +275,79 @@ def save_tracked(
 ) -> dict[str, Any]:
     """Save the native-revisions .docx and report the tracked + .changex paths.
 
-    The journal is already persisted incrementally; here we just write the Word
-    file and verify the chain before reporting success.
+    The journal is already persisted incrementally; here we render the Word file
+    as a pure projection of the journal's **active** (non-reverted) events via the
+    core's revert-aware :func:`save_active`. It loads the baseline docx fresh and
+    replays only non-reverted ops, so a rejected op's revision is genuinely absent
+    from the saved file (not merely flagged in the journal). The chain is verified
+    before reporting success.
     """
     session = store.get(handle)
     out_path = safe_path(out, allow_suffixes=(".docx",))
     with session.lock:
-        session.adapter.save(str(out_path))
+        active = save_active(
+            session.journal,
+            str(session.source_path),
+            str(out_path),
+            author=session.author,
+        )
         verify = session.journal.verify()
     return {
         "tracked_path": str(out_path),
         "changex_path": str(session.changex_path),
-        "ops": session.journal.last_seq,
+        "ops": active,
+        "verified": verify.ok,
+    }
+
+
+def reject(store: SessionStore, *, handle: str, op_id: str) -> dict[str, Any]:
+    """Reject one journaled op by id so its revision is dropped from the save.
+
+    Calls :meth:`Journal.revert`, which appends a non-destructive ``revert`` marker
+    (the rejection is itself audited) and removes the op from ``active_events`` /
+    ``replay``. On the next :func:`save_tracked`, the op's revision is genuinely
+    absent from the rendered .docx. Reverting an already-reverted op is a no-op;
+    an unknown ``op_id`` is refused with ``unknown_op_id``.
+    """
+    session = store.get(handle)
+    op_id_str = coerce_str(op_id, field="op_id") or ""
+    with session.lock:
+        try:
+            session.journal.revert(op_id_str)
+        except JournalError as exc:
+            raise ToolError("unknown_op_id", str(exc)) from exc
+        verify = session.journal.verify()
+    return {
+        "op_id": op_id_str,
+        "status": "rejected",
+        "reverted": session.journal.is_reverted(op_id_str),
+        "active_ops": len(session.journal.active_events()),
+        "verified": verify.ok,
+    }
+
+
+def accept(store: SessionStore, *, handle: str, op_id: str) -> dict[str, Any]:
+    """Accept (un-reject) a previously rejected op so its revision is kept.
+
+    Calls :meth:`Journal.unrevert`, the accept side of review: it appends an
+    ``unrevert`` marker (also audited) and the op rejoins ``active_events`` /
+    ``replay`` so its revision reappears in the next :func:`save_tracked`.
+    Un-reverting an op that is not currently reverted is a no-op; an unknown
+    ``op_id`` is refused with ``unknown_op_id``.
+    """
+    session = store.get(handle)
+    op_id_str = coerce_str(op_id, field="op_id") or ""
+    with session.lock:
+        try:
+            session.journal.unrevert(op_id_str)
+        except JournalError as exc:
+            raise ToolError("unknown_op_id", str(exc)) from exc
+        verify = session.journal.verify()
+    return {
+        "op_id": op_id_str,
+        "status": "accepted",
+        "reverted": session.journal.is_reverted(op_id_str),
+        "active_ops": len(session.journal.active_events()),
         "verified": verify.ok,
     }
 

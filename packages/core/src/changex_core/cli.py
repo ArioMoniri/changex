@@ -1,8 +1,13 @@
-"""Thin CLI exercising the M0 spine: ``changex track | review | verify``.
+"""Thin CLI exercising the M0 spine: ``changex track | review | verify | view``.
 
 This is the script-based acceptance surface for M0. It does not implement the MCP
 server (that is the separate ``changex-mcp`` package); it drives the core
 directly so the spine can be validated end-to-end from a shell.
+
+Format dispatch: ``track`` / ``verify`` / ``view`` resolve the adapter by the
+file's extension via :func:`changex_core.adapters.load_adapter` rather than
+hard-coding docx, so a new format adapter (xlsx/csv/pptx) is reachable from the
+CLI the moment it is registered. ``.docx`` behavior is unchanged.
 
 All caller paths are sanitized at the boundary (:func:`changex_core.paths.safe_path`
 is used by every core entry point this CLI calls).
@@ -15,14 +20,14 @@ import json
 import sys
 from typing import Sequence
 
-from changex_core.adapters.docx_adapter import DEFAULT_AUTHOR, DocxAdapter
+from changex_core.adapters import SUPPORTED_SUFFIXES, load_adapter
+from changex_core.adapters.docx_adapter import DEFAULT_AUTHOR
 from changex_core.journal.events import Header, Provenance, Target, utc_now_iso
 from changex_core.journal.journal import Journal
 from changex_core.ops.vocabulary import op_from_dict, target_node_id
 from changex_core.passive import open_passive, seal_passive
 from changex_core.paths import safe_path
 from changex_core.render.html import render_html, render_markdown
-from changex_core.render.save import save_active
 from changex_core.render.server import DEFAULT_PORT, serve
 
 
@@ -37,18 +42,48 @@ def _provenance(session_id: str, agent: str | None, rationale: str | None) -> Pr
     )
 
 
+def _doc_format(path) -> str:  # type: ignore[no-untyped-def]
+    """Return the document format name for a path (its lowercased suffix sans dot)."""
+    return path.suffix.lower().lstrip(".")
+
+
+def _save_active_via_adapter(
+    journal: Journal, baseline: str, out: str, *, author: str
+) -> int:
+    """Replay the journal's active events onto a fresh adapter and save (any format).
+
+    This is the format-aware analogue of :func:`render.save.save_active`: it loads
+    the baseline through :func:`load_adapter` (extension picks the adapter), then
+    replays ONLY non-reverted events onto that clean adapter and saves the tracked
+    output. Because it replays into a fresh adapter rather than baking the live
+    one, a later ``revert`` genuinely drops the op's revision from the saved file.
+    For ``.docx`` this is byte-for-byte the existing ``save_active`` flow.
+    """
+    adapter = load_adapter(baseline, author=author)
+    baseline_model = adapter.to_model()
+    journal.replay(adapter, baseline_model)
+    adapter.save(out)
+    return len(journal.active_events())
+
+
 def cmd_track(args: argparse.Namespace) -> int:
-    """Apply a JSON list of ops to a .docx, writing tracked docx + .changex."""
-    doc_path = safe_path(args.docx, must_exist=True, allow_suffixes=(".docx",))
+    """Apply a JSON list of ops to a document, writing the tracked doc + .changex.
+
+    Format-aware: the adapter is resolved by the input file's extension via
+    :func:`load_adapter` (``.docx`` keeps its exact prior behavior). The output
+    must share the input's extension so the tracked projection matches the format.
+    """
+    doc_path = safe_path(args.docx, must_exist=True, allow_suffixes=SUPPORTED_SUFFIXES)
     ops_path = safe_path(args.ops, must_exist=True, allow_suffixes=(".json",))
-    out_path = safe_path(args.out, allow_suffixes=(".docx",))
+    out_path = safe_path(args.out, allow_suffixes=(doc_path.suffix.lower(),))
     changex_path = safe_path(args.changex, allow_suffixes=(".changex", ".jsonl"))
 
-    adapter = DocxAdapter.load(str(doc_path), author=args.author)
+    adapter = load_adapter(str(doc_path), author=args.author)
     header = Header.create(
         baseline_sha256=adapter.baseline_sha256(),
         filename=doc_path.name,
-        node_id_map=adapter.node_id_map(),
+        doc_format=_doc_format(doc_path),
+        node_id_map=adapter.node_id_map() if hasattr(adapter, "node_id_map") else {},
     )
     journal = Journal.open(str(changex_path), header=header)
     session_id = header.session_id
@@ -70,10 +105,12 @@ def cmd_track(args: argparse.Namespace) -> int:
 
     # Save by replaying ONLY the journal's active (non-reverted) events onto a
     # fresh adapter loaded from the baseline, so a later revert genuinely drops
-    # the op's revision from the saved .docx (rather than baking in every applied
+    # the op's revision from the saved doc (rather than baking in every applied
     # op). With no reverts yet this reproduces the live adapter exactly.
-    active = save_active(journal, str(doc_path), str(out_path), author=args.author)
-    print(f"tracked docx -> {out_path}")
+    active = _save_active_via_adapter(
+        journal, str(doc_path), str(out_path), author=args.author
+    )
+    print(f"tracked doc  -> {out_path}")
     print(f".changex     -> {changex_path}")
     print(f"ops applied  : {len(op_dicts)} ({active} active)")
     return 0
@@ -84,7 +121,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
     changex_path = safe_path(args.changex, must_exist=True, allow_suffixes=(".changex", ".jsonl"))
     journal = Journal.open(str(changex_path))
     baseline = (
-        str(safe_path(args.baseline, must_exist=True, allow_suffixes=(".docx",)))
+        str(safe_path(args.baseline, must_exist=True, allow_suffixes=SUPPORTED_SUFFIXES))
         if args.baseline
         else None
     )
@@ -125,7 +162,9 @@ def cmd_view(args: argparse.Namespace) -> int:
     """Serve the interactive localhost review UI for a .changex journal."""
     changex_path = safe_path(args.changex, must_exist=True, allow_suffixes=(".changex", ".jsonl"))
     doc_path = (
-        str(safe_path(args.doc, must_exist=True, allow_suffixes=(".docx",))) if args.doc else None
+        str(safe_path(args.doc, must_exist=True, allow_suffixes=SUPPORTED_SUFFIXES))
+        if args.doc
+        else None
     )
     serve(
         str(changex_path),
@@ -171,10 +210,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="changex", description="ChangeX core CLI (M0 spine).")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    track = sub.add_parser("track", help="apply ops to a .docx, emit tracked docx + .changex")
-    track.add_argument("docx", help="input .docx")
+    track = sub.add_parser(
+        "track",
+        help="apply ops to a document (.docx/.xlsx/.csv/.pptx), emit tracked doc + .changex",
+    )
+    track.add_argument("docx", help="input document (.docx/.xlsx/.csv/.pptx)")
     track.add_argument("ops", help="JSON file: list of op dicts")
-    track.add_argument("--out", required=True, help="output tracked .docx")
+    track.add_argument("--out", required=True, help="output tracked document (same extension as input)")
     track.add_argument("--changex", required=True, help="output .changex journal")
     track.add_argument("--author", default=DEFAULT_AUTHOR, help="revision author / model name")
     track.set_defaults(func=cmd_track)
@@ -182,7 +224,8 @@ def build_parser() -> argparse.ArgumentParser:
     verify = sub.add_parser("verify", help="verify a .changex hash chain + baseline")
     verify.add_argument("changex", help=".changex journal")
     verify.add_argument(
-        "--baseline", help="baseline .docx to re-hash against header baseline_sha256"
+        "--baseline",
+        help="baseline document (.docx/.xlsx/.csv/.pptx) to re-hash against header baseline_sha256",
     )
     verify.set_defaults(func=cmd_verify)
 
@@ -194,7 +237,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     view = sub.add_parser("view", help="serve an interactive localhost review UI")
     view.add_argument("changex", help=".changex journal")
-    view.add_argument("--doc", help="associated tracked .docx (for the page title)")
+    view.add_argument(
+        "--doc", help="associated tracked document (.docx/.xlsx/.csv/.pptx) for the page title"
+    )
     view.add_argument(
         "--port", type=int, default=DEFAULT_PORT, help="localhost port (default 8765)"
     )

@@ -41,6 +41,7 @@ class Session:
     adapter: DocxAdapter
     journal: Journal
     agent_context: AgentContext
+    author: str
     lock: threading.Lock = field(default_factory=threading.Lock)
 
     @property
@@ -96,6 +97,7 @@ class SessionStore:
                 adapter=adapter,
                 journal=journal,
                 agent_context=agent_context,
+                author=author,
             )
             self._sessions[handle] = session
             self._open_paths[str(resolved_src)] = handle

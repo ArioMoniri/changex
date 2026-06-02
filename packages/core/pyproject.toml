@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 authors = [{ name = "ChangeX" }]
-keywords = ["docx", "track-changes", "provenance", "ooxml", "event-sourcing"]
+keywords = ["docx", "xlsx", "pptx", "csv", "track-changes", "provenance", "ooxml", "event-sourcing"]
 classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -20,6 +20,10 @@ classifiers = [
 dependencies = [
     "python-docx>=1.1.0",
     "lxml>=4.9.0",
+    # v0.2 format adapters (phase-2): xlsx/csv use openpyxl, pptx uses python-pptx.
+    # Declared here so the phase-2 adapter agents never need to touch pyproject.
+    "openpyxl>=3.1.0",
+    "python-pptx>=0.6.21",
 ]
 
 [project.optional-dependencies]

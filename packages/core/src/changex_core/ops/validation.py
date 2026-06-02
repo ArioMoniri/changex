@@ -1,9 +1,14 @@
-"""Lightweight, dependency-free validation of v0.1 ops, headers and events.
+"""Lightweight, dependency-free validation of v0.2 ops, headers and events.
 
 The published contract is ``schema.json`` (JSON Schema draft-07). To keep the
 core importable with **zero external dependencies**, this module hand-rolls the
 subset of validation we actually need (required keys, allowed kinds, type
 checks, reserved-op rejection) rather than pulling in ``jsonschema`` at runtime.
+
+The accepted v0.2 set is the docx ops plus the un-reserved spreadsheet/slide ops
+(``cell.set``, ``formula.set``, ``row.insert``, ``row.delete``, ``slide.insert``,
+``slide.delete``, ``shape.edit``). ``format.run`` and ``node.move`` remain the
+only reserved kinds and are still rejected.
 
 The JSON Schema remains the source of truth and is what downstream consumers /
 other languages validate against; this module is kept in lock-step with it.
@@ -23,14 +28,24 @@ from changex_core.ops.vocabulary import (
 
 SCHEMA_PATH = Path(__file__).with_name("schema.json")
 
-# Required keys per v0.1 op kind, mirroring schema.json definitions.
+# Required keys per v0.2 op kind, mirroring schema.json definitions.
 _OP_REQUIRED: dict[str, set[str]] = {
+    # docx (v0.1, unchanged)
     "text.insert": {"kind", "node_id", "before_anchor", "text"},
     "text.delete": {"kind", "node_id", "before"},
     "text.replace": {"kind", "node_id", "before", "after"},
     "node.insert": {"kind", "node_kind", "position", "value"},
     "node.delete": {"kind", "node_id", "value"},
     "style.change": {"kind", "node_id", "style", "before"},
+    # xlsx / csv (v0.2)
+    "cell.set": {"kind", "sheet", "ref", "before", "after"},
+    "formula.set": {"kind", "sheet", "ref", "before", "after"},
+    "row.insert": {"kind", "sheet", "at"},
+    "row.delete": {"kind", "sheet", "at", "value"},
+    # pptx (v0.2)
+    "slide.insert": {"kind", "at", "value"},
+    "slide.delete": {"kind", "at", "value"},
+    "shape.edit": {"kind", "slide", "shape_id", "op"},
 }
 
 
@@ -69,21 +84,54 @@ def validate_op(op: dict[str, Any]) -> None:
     _check_op_types(kind, op)
 
 
+def _check_int(op: dict[str, Any], field: str, *, minimum: int | None = None) -> None:
+    """Assert ``op[field]`` is a non-bool int (optionally ``>= minimum``)."""
+    value = op[field]
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise SchemaValidationError(f"{op.get('kind')}.{field} must be an integer")
+    if minimum is not None and value < minimum:
+        raise SchemaValidationError(f"{op.get('kind')}.{field} must be >= {minimum}")
+
+
 def _check_op_types(kind: str, op: dict[str, Any]) -> None:
+    # --- docx (v0.1) -----------------------------------------------------------
     if kind == "node.insert":
-        if not isinstance(op["position"], int) or isinstance(op["position"], bool):
-            raise SchemaValidationError("node.insert.position must be an integer")
-        if op["position"] < 0:
-            raise SchemaValidationError("node.insert.position must be >= 0")
+        _check_int(op, "position", minimum=0)
         if not isinstance(op["value"], dict):
             raise SchemaValidationError("node.insert.value must be an object")
     elif kind == "node.delete":
         if not isinstance(op["value"], dict):
             raise SchemaValidationError("node.delete.value must be an object")
+    # --- xlsx / csv (v0.2) -----------------------------------------------------
+    elif kind in ("row.insert", "row.delete"):
+        _check_int(op, "at")
+        if kind == "row.delete" and not isinstance(op["value"], list):
+            raise SchemaValidationError("row.delete.value must be an array")
+    # --- pptx (v0.2) -----------------------------------------------------------
+    elif kind in ("slide.insert", "slide.delete"):
+        _check_int(op, "at")
+        if not isinstance(op["value"], dict):
+            raise SchemaValidationError(f"{kind}.value must be an object")
+    elif kind == "shape.edit":
+        _check_int(op, "slide")
+        if not isinstance(op["op"], dict):
+            raise SchemaValidationError("shape.edit.op must be an object")
     if "before_anchor" in op and op["before_anchor"] is not None:
         if not isinstance(op["before_anchor"], str):
             raise SchemaValidationError("before_anchor must be a string or null")
-    for str_field in ("node_id", "text", "before", "after", "style", "node_kind"):
+    # String fields shared across ops (cell.set/formula.set add sheet/ref;
+    # shape.edit adds shape_id). before/after stay strings for cell/formula ops.
+    for str_field in (
+        "node_id",
+        "text",
+        "before",
+        "after",
+        "style",
+        "node_kind",
+        "sheet",
+        "ref",
+        "shape_id",
+    ):
         if str_field in op and not isinstance(op[str_field], str):
             raise SchemaValidationError(f"{kind}.{str_field} must be a string")
 

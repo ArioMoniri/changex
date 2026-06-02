@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://changex.dev/schema/0.1/changex.json",
-  "title": "ChangeX v0.1 journal schema",
-  "description": "Schemas for the .changex header, op events, and the frozen v0.1 op set. Reserved (not-yet-implemented) ops are listed in the appendix and are rejected by validation.",
+  "$id": "https://changex.dev/schema/0.2/changex.json",
+  "title": "ChangeX v0.2 journal schema",
+  "description": "Schemas for the .changex header, op events, and the frozen v0.2 op set (docx text/structure ops plus the un-reserved xlsx/csv cell+row ops and pptx slide+shape ops). Only format.run and node.move remain reserved and are rejected by validation.",
   "definitions": {
     "provenance": {
       "type": "object",
@@ -96,6 +96,82 @@
       },
       "additionalProperties": false
     },
+    "op_cell_set": {
+      "type": "object",
+      "required": ["kind", "sheet", "ref", "before", "after"],
+      "properties": {
+        "kind": { "const": "cell.set" },
+        "sheet": { "type": "string" },
+        "ref": { "type": "string" },
+        "before": { "type": "string" },
+        "after": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "op_formula_set": {
+      "type": "object",
+      "required": ["kind", "sheet", "ref", "before", "after"],
+      "properties": {
+        "kind": { "const": "formula.set" },
+        "sheet": { "type": "string" },
+        "ref": { "type": "string" },
+        "before": { "type": "string" },
+        "after": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "op_row_insert": {
+      "type": "object",
+      "required": ["kind", "sheet", "at"],
+      "properties": {
+        "kind": { "const": "row.insert" },
+        "sheet": { "type": "string" },
+        "at": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "op_row_delete": {
+      "type": "object",
+      "required": ["kind", "sheet", "at", "value"],
+      "properties": {
+        "kind": { "const": "row.delete" },
+        "sheet": { "type": "string" },
+        "at": { "type": "integer" },
+        "value": { "type": "array" }
+      },
+      "additionalProperties": false
+    },
+    "op_slide_insert": {
+      "type": "object",
+      "required": ["kind", "at", "value"],
+      "properties": {
+        "kind": { "const": "slide.insert" },
+        "at": { "type": "integer" },
+        "value": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "op_slide_delete": {
+      "type": "object",
+      "required": ["kind", "at", "value"],
+      "properties": {
+        "kind": { "const": "slide.delete" },
+        "at": { "type": "integer" },
+        "value": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "op_shape_edit": {
+      "type": "object",
+      "required": ["kind", "slide", "shape_id", "op"],
+      "properties": {
+        "kind": { "const": "shape.edit" },
+        "slide": { "type": "integer" },
+        "shape_id": { "type": "string" },
+        "op": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
     "op": {
       "oneOf": [
         { "$ref": "#/definitions/op_text_insert" },
@@ -103,7 +179,14 @@
         { "$ref": "#/definitions/op_text_replace" },
         { "$ref": "#/definitions/op_node_insert" },
         { "$ref": "#/definitions/op_node_delete" },
-        { "$ref": "#/definitions/op_style_change" }
+        { "$ref": "#/definitions/op_style_change" },
+        { "$ref": "#/definitions/op_cell_set" },
+        { "$ref": "#/definitions/op_formula_set" },
+        { "$ref": "#/definitions/op_row_insert" },
+        { "$ref": "#/definitions/op_row_delete" },
+        { "$ref": "#/definitions/op_slide_insert" },
+        { "$ref": "#/definitions/op_slide_delete" },
+        { "$ref": "#/definitions/op_shape_edit" }
       ]
     },
     "header": {
@@ -155,11 +238,9 @@
     }
   },
   "x-reserved-ops-appendix": {
-    "description": "Reserved op kinds, NOT yet implemented; validation rejects them.",
+    "description": "Reserved op kinds, NOT yet implemented; validation rejects them. The xlsx/csv/pptx ops that were reserved in v0.1 are now part of the frozen v0.2 op set above.",
     "kinds": [
-      "format.run", "node.move",
-      "cell.set", "formula.set", "row.insert", "row.delete",
-      "slide.insert", "slide.delete", "shape.edit"
+      "format.run", "node.move"
     ]
   }
 }
