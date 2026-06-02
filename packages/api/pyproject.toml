@@ -8,13 +8,13 @@ version = "0.1.0"
 description = "ChangeX HTTP/REST API: a thin FastAPI wrapper over the changex-core spine so any app or model — local/offline LLMs, or a ChatGPT custom GPT Action consuming /openapi.json — can open, edit, save, and review tracked Word documents over HTTP."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "Apache-2.0" }
+license = { text = "MIT" }
 authors = [{ name = "ChangeX" }]
 keywords = ["docx", "track-changes", "provenance", "fastapi", "openapi", "rest", "ai", "llm", "actions"]
 classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "License :: OSI Approved :: Apache Software License",
+    "License :: OSI Approved :: MIT License",
     "Topic :: Office/Business :: Office Suites",
     "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
 ]

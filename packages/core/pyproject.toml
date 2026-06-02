@@ -8,13 +8,13 @@ version = "0.1.0"
 description = "ChangeX core: canonical document model, append-only provenance journal, and the docx native-revisions adapter (M0 spine)."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "Apache-2.0" }
+license = { text = "MIT" }
 authors = [{ name = "ChangeX" }]
 keywords = ["docx", "xlsx", "pptx", "csv", "track-changes", "provenance", "ooxml", "event-sourcing"]
 classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "License :: OSI Approved :: Apache Software License",
+    "License :: OSI Approved :: MIT License",
     "Topic :: Office/Business :: Office Suites",
 ]
 dependencies = [

@@ -233,4 +233,4 @@ examples/         sample documents and tracked sessions
 
 ## License
 
-MIT (intended).
+MIT — see [LICENSE](LICENSE).

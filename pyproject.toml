@@ -35,7 +35,7 @@ version = "0.1.0"
 description = "ChangeX: provenance-first change tracking for AI document edits. Meta package — installs the core CLI (changex) and the MCP server (changex-mcp)."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "Apache-2.0" }
+license = { text = "MIT" }
 authors = [{ name = "ChangeX" }]
 keywords = [
     "docx", "xlsx", "pptx", "csv", "track-changes", "provenance",
@@ -44,7 +44,7 @@ keywords = [
 classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "License :: OSI Approved :: Apache Software License",
+    "License :: OSI Approved :: MIT License",
     "Topic :: Office/Business :: Office Suites",
     "Topic :: Software Development :: Version Control",
 ]
@@ -103,7 +103,7 @@ changex-api = { workspace = true }
 bypass-selection = true
 
 [tool.hatch.build.targets.sdist]
-include = ["pyproject.toml", "README.md"]
+include = ["pyproject.toml", "README.md", "LICENSE"]
 
 [tool.ruff]
 line-length = 100

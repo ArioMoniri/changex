@@ -8,13 +8,13 @@ version = "0.1.0"
 description = "ChangeX MCP server: edit a .docx through an MCP client and get native Word revisions plus a portable .changex provenance journal."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "Apache-2.0" }
+license = { text = "MIT" }
 authors = [{ name = "ChangeX" }]
 keywords = ["mcp", "docx", "track-changes", "provenance", "fastmcp"]
 classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "License :: OSI Approved :: Apache Software License",
+    "License :: OSI Approved :: MIT License",
     "Topic :: Office/Business :: Office Suites",
 ]
 dependencies = [
