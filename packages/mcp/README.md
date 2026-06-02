@@ -31,6 +31,66 @@ python -m changex_mcp          # identical to the `changex-mcp` script
 All three forms start the same **stdio** server. Setup is under 10 minutes: install,
 drop one of the config blocks below into your client, restart the client.
 
+## Remote HTTP transport (connector-URL clients)
+
+Some clients don't spawn a local process — they connect to an MCP server over a
+**URL**. claude.ai *custom connectors* and ChatGPT *app connectors* are both
+URL-based. For those, run the same server over **Streamable HTTP** instead of stdio:
+
+```bash
+# loopback only (default host 127.0.0.1, port 9000, path /mcp) — no token needed
+changex-mcp --http
+# → serves http://127.0.0.1:9000/mcp
+
+# pick host / port / path
+changex-mcp --http --host 127.0.0.1 --port 9000 --path /mcp
+```
+
+Everything is also configurable by environment variable (CLI flags win over env):
+
+| Env var | Meaning | Default |
+|---------|---------|---------|
+| `CHANGEX_MCP_TRANSPORT` | `stdio` \| `http` \| `sse` | `stdio` |
+| `CHANGEX_MCP_HOST` | HTTP bind host | `127.0.0.1` |
+| `CHANGEX_MCP_PORT` | HTTP bind port | `9000` |
+| `CHANGEX_MCP_PATH` | HTTP endpoint path | `/mcp` |
+| `CHANGEX_MCP_TOKEN` | Bearer token (see security) | *(none)* |
+| `CHANGEX_MCP_PUBLIC` | `1` to acknowledge a non-loopback bind | *(off)* |
+
+The HTTP deps (`starlette` + `uvicorn`) ship with the SDK's `cli` extra; if you
+installed a minimal wheel, add them with `pip install "changex-mcp[http]"`.
+
+### Connector URL shape
+
+```
+http://<host>:<port><path>          e.g.  http://127.0.0.1:9000/mcp
+```
+
+That URL is exactly what you paste into a claude.ai custom connector or a ChatGPT
+app connector. Authenticate with an `Authorization: Bearer <CHANGEX_MCP_TOKEN>`
+header (required for any non-loopback bind; optional but recommended on loopback).
+
+### Security: this server edits local files
+
+Because the tools write `.docx`/`.changex` files on the host, the bind policy is
+**fail-closed**:
+
+- **Default is loopback** (`127.0.0.1`). A loopback bind needs no token.
+- **Binding to a non-loopback host or `0.0.0.0` is refused** unless you supply
+  **both**:
+  1. the explicit `--public` flag (or `CHANGEX_MCP_PUBLIC=1`), **and**
+  2. a bearer token in `CHANGEX_MCP_TOKEN`.
+
+  A public bind without a token aborts with a clear warning rather than silently
+  exposing file-editing tools to the network:
+
+  ```bash
+  CHANGEX_MCP_TOKEN=$(openssl rand -hex 32) changex-mcp --http --host 0.0.0.0 --public
+  ```
+
+To reach a loopback HTTP server from a cloud client, put it behind a TLS reverse
+proxy / tunnel and keep the bearer token on — never expose the raw port.
+
 ## Tools
 
 | Tool | Purpose |
@@ -151,6 +211,40 @@ For the OpenAI Responses API hosted-MCP shape, point a stdio bridge at
   }
 }
 ```
+
+### claude.ai custom connector (remote, URL-based)
+
+Custom connectors dial a **URL**, so run the HTTP transport first:
+
+```bash
+export CHANGEX_MCP_TOKEN=$(openssl rand -hex 32)
+changex-mcp --http            # → http://127.0.0.1:9000/mcp
+```
+
+Then in claude.ai → **Settings → Connectors → Add custom connector**:
+
+- **URL**: `http://127.0.0.1:9000/mcp` (or your TLS-tunneled public URL)
+- **Authentication**: header `Authorization: Bearer <CHANGEX_MCP_TOKEN>`
+
+A cloud client can't reach `127.0.0.1` on your laptop directly — front the
+loopback server with a TLS tunnel/reverse proxy and use that HTTPS URL, keeping
+the bearer token on. Any non-loopback bind **requires** `--public` + the token.
+
+### ChatGPT app connector (remote, URL-based)
+
+Same server, same URL shape. Start it:
+
+```bash
+export CHANGEX_MCP_TOKEN=$(openssl rand -hex 32)
+changex-mcp --http --host 127.0.0.1 --port 9000 --path /mcp
+```
+
+In ChatGPT → **Settings → Connectors / Apps → Add** (developer mode for a custom
+MCP app):
+
+- **MCP server URL**: `https://<your-tunnel-host>/mcp` (point your tunnel at the
+  loopback `http://127.0.0.1:9000/mcp`)
+- **Auth**: bearer token = `CHANGEX_MCP_TOKEN`
 
 ## End-to-end example (what the model calls)
 

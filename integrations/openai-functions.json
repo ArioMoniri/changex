@@ -1,0 +1,259 @@
+{
+  "$comment": "ChangeX function-calling tools (OpenAI `tools` format). Each tool maps 1:1 to a ChangeX REST endpoint; call them against a running changex-api (see integrations/openapi.json).",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "openTracked",
+        "description": "Open a .docx (by absolute server path) for tracked editing. Returns a session handle to use for every subsequent call. POST /sessions.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Absolute server-side path to the .docx to open."
+            },
+            "agent_context": {
+              "type": "object",
+              "description": "Once-per-session declared identity.",
+              "properties": {
+                "model": {
+                  "type": "string",
+                  "description": "Your model id, e.g. 'gpt-4o'."
+                },
+                "vendor": {
+                  "type": "string",
+                  "description": "Your vendor, e.g. 'openai'."
+                }
+              }
+            },
+            "author": {
+              "type": "string",
+              "description": "Override the Word revision author (defaults to model id)."
+            }
+          },
+          "required": [
+            "path"
+          ]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "getOutline",
+        "description": "List the document's paragraphs (bounded + paginated) to discover node ids to target with editSession. GET /sessions/{handle}/outline.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "handle": {
+              "type": "string",
+              "description": "Session handle from openTracked."
+            },
+            "cursor": {
+              "type": "string",
+              "description": "Opaque pagination cursor from a previous page."
+            },
+            "limit": {
+              "type": "integer",
+              "description": "Max entries per page (1-500).",
+              "minimum": 1,
+              "maximum": 500
+            }
+          },
+          "required": [
+            "handle"
+          ]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "editSession",
+        "description": "Make ONE small, intent-named tracked edit. Always pass the exact current text in `before`; the server refuses blind overwrites and rejects an op that rewrites >50% of a paragraph (split it instead). POST /sessions/{handle}/edit.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "handle": {
+              "type": "string",
+              "description": "Session handle from openTracked."
+            },
+            "op": {
+              "type": "string",
+              "enum": [
+                "replace_text",
+                "insert_text_after",
+                "delete_text",
+                "set_paragraph_style"
+              ],
+              "description": "The edit intent."
+            },
+            "node_id": {
+              "type": "string",
+              "description": "Target node id (from getOutline)."
+            },
+            "before": {
+              "type": "string",
+              "description": "Exact CURRENT text/style to match (refuses blind overwrites)."
+            },
+            "after": {
+              "type": "string",
+              "description": "Replacement text (replace_text)."
+            },
+            "anchor": {
+              "type": "string",
+              "description": "Exact text to insert after (insert_text_after)."
+            },
+            "text": {
+              "type": "string",
+              "description": "Text to insert (insert_text_after)."
+            },
+            "style": {
+              "type": "string",
+              "description": "New paragraph style (set_paragraph_style)."
+            },
+            "rationale": {
+              "type": "string",
+              "description": "Optional declared 'why'."
+            },
+            "prompt": {
+              "type": "string",
+              "description": "Optional prompt; hashed, never stored verbatim."
+            },
+            "turn_id": {
+              "type": "string",
+              "description": "Optional declared turn id."
+            }
+          },
+          "required": [
+            "handle",
+            "op",
+            "node_id"
+          ]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "saveSession",
+        "description": "Write the native-revisions .docx (real Word accept/reject changes) plus the hash-chained .changex journal. POST /sessions/{handle}/save.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "handle": {
+              "type": "string",
+              "description": "Session handle from openTracked."
+            },
+            "out": {
+              "type": "string",
+              "description": "Absolute .docx path to write the tracked file to."
+            }
+          },
+          "required": [
+            "handle",
+            "out"
+          ]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "getChanges",
+        "description": "Return the structured provenance journal: every active edit with full attribution. GET /sessions/{handle}/changes.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "handle": {
+              "type": "string",
+              "description": "Session handle from openTracked."
+            }
+          },
+          "required": [
+            "handle"
+          ]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "passiveOpen",
+        "description": "Start a passive (no-tool-calling) capture: snapshot a docx so any tool can edit it, then call passiveSeal to capture the delta. POST /open.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "docx": {
+              "type": "string",
+              "description": "Absolute path to the .docx to snapshot."
+            },
+            "changex": {
+              "type": "string",
+              "description": "Optional sidecar journal path (.changex/.jsonl)."
+            }
+          },
+          "required": [
+            "docx"
+          ]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "passiveSeal",
+        "description": "Diff the edited docx vs the stored baseline and append passive ops with honest, degraded provenance. POST /seal.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "docx": {
+              "type": "string",
+              "description": "Absolute path to the (now edited) .docx."
+            },
+            "changex": {
+              "type": "string",
+              "description": "Optional sidecar journal path."
+            }
+          },
+          "required": [
+            "docx"
+          ]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "renderReport",
+        "description": "Render an HTML/markdown redline of a session's or journal's changes. Pass either handle (tracked) or changex (passive journal path). POST /report.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "handle": {
+              "type": "string",
+              "description": "An open tracked-session handle to render from."
+            },
+            "changex": {
+              "type": "string",
+              "description": "OR a path to a .changex journal (passive flow)."
+            },
+            "fmt": {
+              "type": "string",
+              "enum": [
+                "html",
+                "markdown"
+              ],
+              "description": "Output format (default html)."
+            },
+            "raw": {
+              "type": "boolean",
+              "description": "Return text/html instead of JSON when true."
+            }
+          }
+        }
+      }
+    }
+  ]
+}

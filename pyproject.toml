@@ -2,23 +2,24 @@
 #
 # This file does TWO jobs at once:
 #
-#   1. It declares the **uv workspace** ([tool.uv.workspace]) so the two
-#      installable packages — packages/core (changex-core) and packages/mcp
-#      (changex-mcp) — resolve against each other from the local tree during
-#      development (`uv sync`). `changex-mcp` already pins
-#      `changex-core = { workspace = true }`, so a single `uv sync` at the repo
-#      root wires the whole thing up with one lockfile.
+#   1. It declares the **uv workspace** ([tool.uv.workspace]) so the three
+#      installable packages — packages/core (changex-core), packages/mcp
+#      (changex-mcp), and packages/api (changex-api) — resolve against each other
+#      from the local tree during development (`uv sync`). `changex-mcp` and
+#      `changex-api` both pin `changex-core = { workspace = true }`, so a single
+#      `uv sync` at the repo root wires the whole thing up with one lockfile.
 #
 #   2. It IS the `changex` **meta package** ([project]) — a tiny umbrella whose
-#      only dependencies are `changex-core` + `changex-mcp`. Installing it pulls
-#      both real packages and re-exposes both console scripts, so the public,
-#      memorable commands work from a single name:
+#      only dependencies are `changex-core` + `changex-mcp` + `changex-api`.
+#      Installing it pulls all real packages and re-exposes their console scripts,
+#      so the public, memorable commands work from a single name:
 #
 #          uv tool install changex     # or: pipx install changex / pip install changex
 #          changex --help              #   the CLI (from changex-core)
 #          changex-mcp                 #   the MCP stdio server (from changex-mcp)
+#          changex-api                 #   the HTTP/REST API server (from changex-api)
 #
-#      and the zero-install form:  uvx changex … / uvx changex-mcp.
+#      and the zero-install form:  uvx changex … / uvx changex-mcp / uvx changex-api.
 #
 # There is no source under this package: it is pure aggregation. The two
 # [project.scripts] entries below re-point at the sub-packages' real entry
@@ -53,14 +54,16 @@ classifiers = [
 dependencies = [
     "changex-core>=0.1.0",
     "changex-mcp>=0.1.0",
+    "changex-api>=0.1.0",
 ]
 
-# Re-expose BOTH commands from the meta package. They resolve to the same entry
-# points the sub-packages declare, so `changex` and `changex-mcp` are on PATH
-# after installing the single `changex` name.
+# Re-expose ALL commands from the meta package. They resolve to the same entry
+# points the sub-packages declare, so `changex`, `changex-mcp`, and `changex-api`
+# are on PATH after installing the single `changex` name.
 [project.scripts]
 changex = "changex_core.cli:main"
 changex-mcp = "changex_mcp.server:main"
+changex-api = "changex_api.__main__:main"
 
 [project.optional-dependencies]
 # `pip install "changex[dev]"` / `uv sync --extra dev` pulls the test + lint
@@ -85,13 +88,14 @@ Repository = "https://github.com/ArioMoniri/changex"
 # the source of truth during development.
 # --------------------------------------------------------------------------- #
 [tool.uv.workspace]
-members = ["packages/core", "packages/mcp"]
+members = ["packages/core", "packages/mcp", "packages/api"]
 
 # During development, resolve the two packages from the workspace tree rather
 # than from PyPI, so `uv sync` builds the meta package against the local source.
 [tool.uv.sources]
 changex-core = { workspace = true }
 changex-mcp = { workspace = true }
+changex-api = { workspace = true }
 
 # The meta package ships no Python module of its own — it is pure aggregation.
 # Tell hatchling there are no packages to collect so the wheel builds cleanly.

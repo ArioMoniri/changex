@@ -23,3 +23,6 @@ packages/viewer/src-tauri/target/
 # ChangeX working artifacts
 *.changex.tmp
 examples/out/
+
+# stray sample journals (regenerate via make demo)
+examples/*.changex

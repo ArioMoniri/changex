@@ -1,7 +1,8 @@
-"""``python -m changex_mcp`` → start the stdio FastMCP server.
+"""``python -m changex_mcp`` → start the FastMCP server.
 
 This mirrors the ``changex-mcp`` console script (and ``uvx changex-mcp``); both
-land on :func:`changex_mcp.server.main`, which runs the server over stdio.
+land on :func:`changex_mcp.server.main`, which runs stdio by default or the remote
+HTTP transport when ``--http`` / ``--sse`` (or ``CHANGEX_MCP_TRANSPORT``) is given.
 """
 
 from __future__ import annotations

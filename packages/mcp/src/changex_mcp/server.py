@@ -12,6 +12,9 @@ plus optional rationale / prompt / turn). The prompt is hashed, never stored
 verbatim.
 
 Run it with ``python -m changex_mcp`` or ``uvx changex-mcp`` (stdio transport).
+Pass ``--http`` (see :mod:`changex_mcp.transport`) to instead serve a remote
+Streamable HTTP transport for connector-URL clients (claude.ai custom connectors,
+ChatGPT app connectors), guarded by a loopback-default + bearer-token policy.
 
 The tool *descriptions* below are prompt-engineered: they tell the model to make
 the smallest possible edit and never delete-and-reinsert a paragraph for a small
@@ -22,34 +25,31 @@ guarantee, not a hope.
 
 from __future__ import annotations
 
+import sys
 from typing import Any, Optional
 
 from mcp.server.fastmcp import Context, FastMCP
 
-from changex_mcp import tools
+from changex_mcp import tools, transport
 from changex_mcp.provenance import observed_from_mcp
 from changex_mcp.session import SessionStore
 
 # The single in-process session registry shared by every tool.
 STORE = SessionStore()
 
-mcp = FastMCP(
-    "changex",
-    instructions=(
-        "ChangeX turns your edits to a Word document into native, accept/reject "
-        "tracked changes plus a portable, hash-chained provenance journal "
-        "(.changex). Workflow: call open_tracked(path) to get a handle, "
-        "get_outline(handle) to discover node_ids, then make the SMALLEST "
-        "possible edit per call via edit(handle, op=..., node_id=..., ...). "
-        "Always pass the exact existing text in `before`; the server validates it "
-        "and refuses blind overwrites. Never delete-and-reinsert a whole paragraph "
-        "for a small wording change — use replace_text on just the changed words. "
-        "Finally call save_tracked(handle, out) to write the Word file and sidecar."
-    ),
+_INSTRUCTIONS = (
+    "ChangeX turns your edits to a Word document into native, accept/reject "
+    "tracked changes plus a portable, hash-chained provenance journal "
+    "(.changex). Workflow: call open_tracked(path) to get a handle, "
+    "get_outline(handle) to discover node_ids, then make the SMALLEST "
+    "possible edit per call via edit(handle, op=..., node_id=..., ...). "
+    "Always pass the exact existing text in `before`; the server validates it "
+    "and refuses blind overwrites. Never delete-and-reinsert a whole paragraph "
+    "for a small wording change — use replace_text on just the changed words. "
+    "Finally call save_tracked(handle, out) to write the Word file and sidecar."
 )
 
 
-@mcp.tool()
 def open_tracked(
     path: str,
     agent_context: Optional[dict[str, Any]] = None,
@@ -70,7 +70,6 @@ def open_tracked(
         return exc.to_dict()
 
 
-@mcp.tool()
 def get_outline(
     handle: str,
     cursor: Optional[str] = None,
@@ -88,7 +87,6 @@ def get_outline(
         return _coerce_error(exc)
 
 
-@mcp.tool()
 def edit(
     handle: str,
     op: str,
@@ -144,7 +142,6 @@ def edit(
         return _coerce_error(exc)
 
 
-@mcp.tool()
 def save_tracked(handle: str, out: str) -> dict[str, Any]:
     """Write the native-revisions .docx and report the tracked + .changex paths.
 
@@ -158,7 +155,6 @@ def save_tracked(handle: str, out: str) -> dict[str, Any]:
         return _coerce_error(exc)
 
 
-@mcp.tool()
 def reject(handle: str, op_id: str) -> dict[str, Any]:
     """Reject a change by op_id so its revision is dropped from the saved .docx.
 
@@ -174,7 +170,6 @@ def reject(handle: str, op_id: str) -> dict[str, Any]:
         return _coerce_error(exc)
 
 
-@mcp.tool()
 def accept(handle: str, op_id: str) -> dict[str, Any]:
     """Accept (un-reject) a previously rejected change so its revision is kept.
 
@@ -189,7 +184,6 @@ def accept(handle: str, op_id: str) -> dict[str, Any]:
         return _coerce_error(exc)
 
 
-@mcp.tool()
 def get_changes(handle: str) -> dict[str, Any]:
     """Return the structured provenance journal: every edit with full attribution.
 
@@ -202,7 +196,6 @@ def get_changes(handle: str) -> dict[str, Any]:
         return _coerce_error(exc)
 
 
-@mcp.tool()
 def render_review(handle: str, fmt: str = "html") -> dict[str, Any]:
     """Render a human-readable redline of all changes. Returns {format, report}.
 
@@ -223,9 +216,58 @@ def _coerce_error(exc: Exception) -> dict[str, Any]:
     return {"error": "invalid_argument", "detail": str(exc)}
 
 
-def main() -> None:
-    """Console-script / ``python -m changex_mcp`` entry point (stdio transport)."""
-    mcp.run()
+# The eight tool callables, registered identically on every FastMCP instance.
+_TOOLS = (
+    open_tracked,
+    get_outline,
+    edit,
+    save_tracked,
+    reject,
+    accept,
+    get_changes,
+    render_review,
+)
+
+
+def build_mcp() -> FastMCP:
+    """Build a fresh, fully-configured :class:`FastMCP` with all ChangeX tools.
+
+    A factory (rather than a single module global) is needed because the SDK's
+    Streamable-HTTP session manager can only be started once per ``FastMCP``
+    instance, so each HTTP server build must get its own. The stdio path uses the
+    shared module-level :data:`mcp` singleton, unchanged.
+    """
+    app = FastMCP("changex", instructions=_INSTRUCTIONS)
+    for fn in _TOOLS:
+        app.tool()(fn)
+    return app
+
+
+# The shared singleton used by the stdio transport (behavior unchanged).
+mcp = build_mcp()
+
+
+def main(argv: Optional[list[str]] = None) -> None:
+    """Console-script / ``python -m changex_mcp`` entry point.
+
+    Default (no args) keeps the unchanged local **stdio** transport. With
+    ``--http`` / ``--sse`` (or ``CHANGEX_MCP_TRANSPORT=http``) it serves the
+    remote HTTP transport that connector-URL clients dial — subject to the
+    loopback-default + bearer-token bind policy in :mod:`changex_mcp.transport`.
+    """
+    try:
+        settings = transport.build_settings(argv)
+    except transport.TransportConfigError as exc:
+        # The insecure-bind warning was already printed to stderr by the policy.
+        print(f"[changex-mcp] {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
+
+    if settings.transport == "stdio":
+        mcp.run()  # unchanged local stdio path
+    else:
+        # A dedicated instance for the HTTP server: its Streamable-HTTP session
+        # manager may only start once, so never reuse the stdio singleton.
+        transport.serve_http(build_mcp(), settings)
 
 
 if __name__ == "__main__":  # pragma: no cover

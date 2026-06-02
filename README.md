@@ -160,6 +160,45 @@ the **same** `.changex` journal and the **same** visualizations:
 A Claude **Skill** and a thin **CLI** wrap the same core. Copy-paste config for every
 surface is in [docs/INTEGRATION.md](docs/INTEGRATION.md).
 
+## Call it from your app
+
+Per-app, copy-paste recipes — real flags, URLs, and endpoints — live in
+**[docs/CALL-FROM-YOUR-APP.md](docs/CALL-FROM-YOUR-APP.md)** (Claude Desktop/Code,
+claude.ai connectors, ChatGPT connectors + custom-GPT Actions, OpenAI Agents/Responses,
+Gemini CLI/API, Cursor, Cline, Ollama, LM Studio). The single most likely path for each
+first-class target:
+
+- **Claude** (Desktop / Code) — MCP over stdio:
+
+  ```bash
+  claude mcp add changex -- uvx changex-mcp
+  ```
+
+  (claude.ai web uses a *custom connector*: run `changex-mcp --http` → paste
+  `http://127.0.0.1:9000/mcp` + a bearer token — see the recipe and its security note.)
+
+- **ChatGPT / OpenAI** — a custom GPT **Action** pointed at the REST OpenAPI schema:
+
+  ```bash
+  uv sync && changex-api      # serves http://127.0.0.1:8000/openapi.json (the Action schema)
+  ```
+
+  (OpenAI Agents SDK can instead use the MCP stdio server directly.)
+
+- **Gemini** — MCP over stdio (CLI), via `~/.gemini/settings.json`:
+
+  ```json
+  { "mcpServers": { "changex": { "command": "uvx", "args": ["changex-mcp"] } } }
+  ```
+
+  (The Gemini API path uses the function declarations in
+  [`integrations/gemini-functions.json`](integrations/gemini-functions.json).)
+
+Honest caveats carry through: a **public** MCP/REST bind is refused without a bearer
+token (loopback is the safe default), and the **passive** `open`/`seal` fallback for
+no-tool-calling models is faithful for *what* changed but **degraded** for *who/why* (see
+[docs/FIDELITY.md](docs/FIDELITY.md)).
+
 ## Status
 
 🚧 Early build, but the core is end-to-end. **Available today:**

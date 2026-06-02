@@ -18,18 +18,30 @@ classifiers = [
     "Topic :: Office/Business :: Office Suites",
 ]
 dependencies = [
-    # The official Python MCP SDK (ships FastMCP under mcp.server.fastmcp).
-    "mcp>=1.2.0",
+    # The official Python MCP SDK (ships FastMCP under mcp.server.fastmcp). The
+    # remote Streamable HTTP / SSE transport needs the SDK's ASGI app helpers,
+    # so pull the SDK's own HTTP extras (starlette/uvicorn) in with it.
+    "mcp[cli]>=1.8.0",
     # The ChangeX spine: model, journal, docx adapter, render. Pinned for the
     # standalone `uvx changex-mcp` path; resolved from the workspace for dev.
     "changex-core>=0.1.0",
 ]
 
 [project.optional-dependencies]
+# Remote HTTP transport (`changex-mcp --http`). The ASGI server + framework the
+# MCP Streamable-HTTP / SSE app runs on. Listed explicitly so an install that
+# does not pull the SDK's `cli` extra still gets a working `--http` server.
+http = [
+    "starlette>=0.37",
+    "uvicorn>=0.30",
+]
 dev = [
     "pytest>=7.0",
     "ruff>=0.1",
     "mypy>=1.5",
+    "httpx>=0.27",      # MCP Streamable-HTTP client used by the HTTP transport test
+    "starlette>=0.37",
+    "uvicorn>=0.30",
 ]
 
 [project.scripts]

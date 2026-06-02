@@ -1,0 +1,63 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "changex-api"
+version = "0.1.0"
+description = "ChangeX HTTP/REST API: a thin FastAPI wrapper over the changex-core spine so any app or model — local/offline LLMs, or a ChatGPT custom GPT Action consuming /openapi.json — can open, edit, save, and review tracked Word documents over HTTP."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "ChangeX" }]
+keywords = ["docx", "track-changes", "provenance", "fastapi", "openapi", "rest", "ai", "llm", "actions"]
+classifiers = [
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: Apache Software License",
+    "Topic :: Office/Business :: Office Suites",
+    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+]
+dependencies = [
+    # FastAPI serves the REST surface AND auto-generates the OpenAPI schema that
+    # ChatGPT custom GPT Actions consume verbatim at /openapi.json.
+    "fastapi>=0.110",
+    # The ASGI server behind the `changex-api` console script / `python -m changex_api`.
+    "uvicorn>=0.27",
+    # The ChangeX spine: model, journal, docx adapter, passive capture, render.
+    # Pinned for the standalone install path; resolved from the workspace for dev.
+    "changex-core>=0.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    # FastAPI's TestClient needs httpx as its transport.
+    "httpx>=0.27",
+    "ruff>=0.1",
+    "mypy>=1.5",
+]
+
+[project.scripts]
+# `changex-api` and `python -m changex_api` both launch uvicorn on the FastAPI app.
+changex-api = "changex_api.__main__:main"
+
+# Resolve changex-core from the local workspace during development.
+[tool.uv.sources]
+changex-core = { workspace = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/changex_api"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/changex_api", "README.md"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_ignores = true
+ignore_missing_imports = true

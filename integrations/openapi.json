@@ -1,0 +1,1244 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ChangeX API",
+    "description": "Provenance-first tracked editing for Word documents, over HTTP. Open a .docx for tracked editing, discover node ids via the outline, make the SMALLEST possible intent-named edit per call (always passing the exact existing text in `before` — blind overwrites are refused), then save a native Word accept/reject revisions file plus a hash-chained .changex provenance journal. A passive (no-tool-calling) /open + /seal path serves offline models. This schema is consumable directly as a ChatGPT custom GPT Action.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Healthz",
+        "description": "Liveness probe; never requires auth.",
+        "operationId": "healthz",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions": {
+      "post": {
+        "tags": [
+          "tracked"
+        ],
+        "summary": "Open Session",
+        "description": "Open a .docx for tracked editing and return a session handle + summary.",
+        "operationId": "openTracked",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenTrackedRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenTrackedResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{handle}/outline": {
+      "get": {
+        "tags": [
+          "tracked"
+        ],
+        "summary": "Get Outline",
+        "description": "Return a bounded, paginated outline of the document's paragraphs.",
+        "operationId": "getOutline",
+        "parameters": [
+          {
+            "name": "handle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Handle"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque pagination cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque pagination cursor."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Max entries per page.",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Max entries per page."
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutlineResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{handle}/edit": {
+      "post": {
+        "tags": [
+          "tracked"
+        ],
+        "summary": "Edit",
+        "description": "Apply ONE small, intent-named tracked edit to a node and journal it.",
+        "operationId": "editSession",
+        "parameters": [
+          {
+            "name": "handle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Handle"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{handle}/save": {
+      "post": {
+        "tags": [
+          "tracked"
+        ],
+        "summary": "Save",
+        "description": "Save the native-revisions .docx and report the tracked + .changex paths.",
+        "operationId": "saveSession",
+        "parameters": [
+          {
+            "name": "handle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Handle"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaveResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{handle}/changes": {
+      "get": {
+        "tags": [
+          "tracked"
+        ],
+        "summary": "Get Changes",
+        "description": "Return the structured provenance journal (active, non-reverted events).",
+        "operationId": "getChanges",
+        "parameters": [
+          {
+            "name": "handle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Handle"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/open": {
+      "post": {
+        "tags": [
+          "passive"
+        ],
+        "summary": "Passive Open",
+        "description": "Snapshot a docx and write a pending passive journal (no tool calls).\n\nAny tool may then edit the docx freely; call /seal to capture the delta.",
+        "operationId": "passiveOpen",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PassiveOpenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PassiveOpenResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/seal": {
+      "post": {
+        "tags": [
+          "passive"
+        ],
+        "summary": "Passive Seal",
+        "description": "Diff the edited docx vs the stored baseline and append passive ops.\n\nReturns honest, *degraded* counts: passive ops are observed net textual\ndeltas, not true provenance (agent/vendor/prompt are null).",
+        "operationId": "passiveSeal",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PassiveSealRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PassiveSealResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report": {
+      "post": {
+        "tags": [
+          "review"
+        ],
+        "summary": "Report",
+        "description": "Render an HTML/markdown redline of a session's or journal's changes.\n\nSupply either an open ``handle`` (tracked flow) or a ``changex`` journal\npath (passive flow). With ``raw=true`` and ``fmt=html`` the response is a\nready-to-display ``text/html`` page; otherwise a JSON ``{format, report}``.",
+        "operationId": "renderReport",
+        "parameters": [
+          {
+            "name": "handle",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "An open tracked-session handle to render from.",
+              "title": "Handle"
+            },
+            "description": "An open tracked-session handle to render from."
+          },
+          {
+            "name": "changex",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "OR a path to a .changex journal to render from (passive flow).",
+              "title": "Changex"
+            },
+            "description": "OR a path to a .changex journal to render from (passive flow)."
+          },
+          {
+            "name": "fmt",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "'html' (default) or 'markdown'.",
+              "default": "html",
+              "title": "Fmt"
+            },
+            "description": "'html' (default) or 'markdown'."
+          },
+          {
+            "name": "raw",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "If true, return the report as text/html instead of JSON.",
+              "default": false,
+              "title": "Raw"
+            },
+            "description": "If true, return the report as text/html instead of JSON."
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Renderreport"
+                }
+              },
+              "text/html": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AgentContext": {
+        "properties": {
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "Your model id, e.g. 'claude-opus-4-8' or 'gpt-4o'. Recorded once for the whole session and used as the Word revision author."
+          },
+          "vendor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor",
+            "description": "Your vendor, e.g. 'anthropic', 'openai', 'google'."
+          }
+        },
+        "type": "object",
+        "title": "AgentContext",
+        "description": "Once-per-session declared identity (captured at open, never per-edit)."
+      },
+      "ChangesResponse": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "events": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Events"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "events",
+          "count",
+          "verified"
+        ],
+        "title": "ChangesResponse",
+        "description": "The structured provenance journal (active, non-reverted events)."
+      },
+      "EditRequest": {
+        "properties": {
+          "op": {
+            "type": "string",
+            "enum": [
+              "replace_text",
+              "insert_text_after",
+              "delete_text",
+              "set_paragraph_style"
+            ],
+            "title": "Op",
+            "description": "The edit intent."
+          },
+          "node_id": {
+            "type": "string",
+            "title": "Node Id",
+            "description": "Target node id (from the outline)."
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before",
+            "description": "Exact CURRENT text/style to match; the server refuses blind overwrites."
+          },
+          "after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After",
+            "description": "Replacement text for replace_text."
+          },
+          "anchor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anchor",
+            "description": "Exact text to insert after (insert_text_after)."
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "Text to insert (insert_text_after)."
+          },
+          "style": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Style",
+            "description": "New paragraph style (set_paragraph_style)."
+          },
+          "rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rationale",
+            "description": "Optional declared 'why'."
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt",
+            "description": "Optional prompt; hashed to prompt_sha256, never stored verbatim."
+          },
+          "turn_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turn Id",
+            "description": "Optional declared turn id."
+          }
+        },
+        "type": "object",
+        "required": [
+          "op",
+          "node_id"
+        ],
+        "title": "EditRequest",
+        "description": "Body for POST /sessions/{id}/edit — apply ONE small intent-named edit.\n\n``op`` selects the intent and its required payload:\n\n* ``replace_text``        — node_id, before (exact current text), after\n* ``insert_text_after``   — node_id, anchor (exact text to insert after), text\n* ``delete_text``         — node_id, before (exact text to delete)\n* ``set_paragraph_style`` — node_id, style (new), before (current style name)"
+      },
+      "EditResponse": {
+        "properties": {
+          "op_id": {
+            "type": "string",
+            "title": "Op Id",
+            "description": "Stable id of the journaled op."
+          },
+          "seq": {
+            "type": "integer",
+            "title": "Seq",
+            "description": "Server-assigned monotonic sequence number."
+          },
+          "node_id": {
+            "type": "string",
+            "title": "Node Id",
+            "description": "Resolved target node id."
+          },
+          "provenance_source": {
+            "type": "string",
+            "title": "Provenance Source",
+            "description": "'declared' or 'observed'."
+          }
+        },
+        "type": "object",
+        "required": [
+          "op_id",
+          "seq",
+          "node_id",
+          "provenance_source"
+        ],
+        "title": "EditResponse",
+        "description": "Result of one journaled edit."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok",
+            "title": "Status",
+            "default": "ok"
+          },
+          "service": {
+            "type": "string",
+            "title": "Service",
+            "default": "changex-api"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "HealthResponse",
+        "description": "Liveness probe payload."
+      },
+      "OpenTrackedRequest": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "Absolute server-side path to the .docx to open for tracked editing.",
+            "examples": [
+              "/data/contract.docx"
+            ]
+          },
+          "agent_context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentContext"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional once-per-session declared identity {model, vendor}."
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author",
+            "description": "Override the Word revision author (defaults to the model id)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "title": "OpenTrackedRequest",
+        "description": "Body for POST /sessions — open a .docx for tracked editing."
+      },
+      "OpenTrackedResponse": {
+        "properties": {
+          "handle": {
+            "type": "string",
+            "title": "Handle",
+            "description": "Opaque session handle; pass it to every other call."
+          },
+          "session_id": {
+            "type": "string",
+            "title": "Session Id",
+            "description": "Stable journal session id (provenance identity)."
+          },
+          "baseline_sha256": {
+            "type": "string",
+            "title": "Baseline Sha256",
+            "description": "SHA-256 of the opened baseline bytes."
+          },
+          "summary": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Summary",
+            "description": "{filename, paragraphs, agent, vendor, changex_path}."
+          }
+        },
+        "type": "object",
+        "required": [
+          "handle",
+          "session_id",
+          "baseline_sha256",
+          "summary"
+        ],
+        "title": "OpenTrackedResponse",
+        "description": "Session handle + summary returned by POST /sessions."
+      },
+      "OutlineEntry": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "title": "Node Id",
+            "description": "Durable node id; use it as an edit target."
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "Node kind, e.g. 'paragraph'."
+          },
+          "preview": {
+            "type": "string",
+            "title": "Preview",
+            "description": "Truncated text preview for discovery."
+          },
+          "style": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Style",
+            "description": "Paragraph style name, if any."
+          }
+        },
+        "type": "object",
+        "required": [
+          "node_id",
+          "kind",
+          "preview"
+        ],
+        "title": "OutlineEntry",
+        "description": "One paragraph node in a paginated outline page."
+      },
+      "OutlineResponse": {
+        "properties": {
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/OutlineEntry"
+            },
+            "type": "array",
+            "title": "Nodes"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Pass back as ?cursor= to page forward; null when done."
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total paragraph count in the document."
+          }
+        },
+        "type": "object",
+        "required": [
+          "nodes",
+          "total"
+        ],
+        "title": "OutlineResponse",
+        "description": "A bounded outline page plus the cursor to fetch the next one."
+      },
+      "PassiveOpenRequest": {
+        "properties": {
+          "docx": {
+            "type": "string",
+            "title": "Docx",
+            "description": "Absolute path to the .docx to snapshot."
+          },
+          "changex": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Changex",
+            "description": "Optional sidecar journal path (.changex/.jsonl)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "docx"
+        ],
+        "title": "PassiveOpenRequest",
+        "description": "Body for POST /open — start a passive (no-tool-calling) capture session."
+      },
+      "PassiveOpenResponse": {
+        "properties": {
+          "changex_path": {
+            "type": "string",
+            "title": "Changex Path"
+          },
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "baseline_sha256": {
+            "type": "string",
+            "title": "Baseline Sha256"
+          },
+          "paragraphs": {
+            "type": "integer",
+            "title": "Paragraphs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "changex_path",
+          "session_id",
+          "baseline_sha256",
+          "paragraphs"
+        ],
+        "title": "PassiveOpenResponse",
+        "description": "Outcome of POST /open."
+      },
+      "PassiveSealRequest": {
+        "properties": {
+          "docx": {
+            "type": "string",
+            "title": "Docx",
+            "description": "Absolute path to the (now edited) .docx."
+          },
+          "changex": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Changex",
+            "description": "Optional sidecar journal path."
+          }
+        },
+        "type": "object",
+        "required": [
+          "docx"
+        ],
+        "title": "PassiveSealRequest",
+        "description": "Body for POST /seal — diff the edited docx vs the stored baseline."
+      },
+      "PassiveSealResponse": {
+        "properties": {
+          "changex_path": {
+            "type": "string",
+            "title": "Changex Path"
+          },
+          "appended": {
+            "type": "integer",
+            "title": "Appended"
+          },
+          "replaced": {
+            "type": "integer",
+            "title": "Replaced"
+          },
+          "inserted": {
+            "type": "integer",
+            "title": "Inserted"
+          },
+          "deleted": {
+            "type": "integer",
+            "title": "Deleted"
+          },
+          "style_changed": {
+            "type": "integer",
+            "title": "Style Changed"
+          },
+          "baseline_unchanged": {
+            "type": "boolean",
+            "title": "Baseline Unchanged"
+          },
+          "degraded": {
+            "type": "boolean",
+            "title": "Degraded",
+            "description": "Always true: passive ops are observed net deltas, not true provenance.",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "changex_path",
+          "appended",
+          "replaced",
+          "inserted",
+          "deleted",
+          "style_changed",
+          "baseline_unchanged"
+        ],
+        "title": "PassiveSealResponse",
+        "description": "Honest, degraded capture counts from a passive seal."
+      },
+      "SaveRequest": {
+        "properties": {
+          "out": {
+            "type": "string",
+            "title": "Out",
+            "description": "Absolute server-side .docx path to write the native-revisions file to.",
+            "examples": [
+              "/data/contract.tracked.docx"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "out"
+        ],
+        "title": "SaveRequest",
+        "description": "Body for POST /sessions/{id}/save — render the tracked .docx."
+      },
+      "SaveResponse": {
+        "properties": {
+          "tracked_path": {
+            "type": "string",
+            "title": "Tracked Path"
+          },
+          "changex_path": {
+            "type": "string",
+            "title": "Changex Path"
+          },
+          "ops": {
+            "type": "integer",
+            "title": "Ops",
+            "description": "Number of active (non-reverted) ops written."
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified",
+            "description": "Whether the journal hash-chain verified."
+          }
+        },
+        "type": "object",
+        "required": [
+          "tracked_path",
+          "changex_path",
+          "ops",
+          "verified"
+        ],
+        "title": "SaveResponse",
+        "description": "Paths + verification result after a save."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
