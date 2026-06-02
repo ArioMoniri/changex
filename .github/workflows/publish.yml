@@ -1,0 +1,42 @@
+## Publishes the four ChangeX packages to PyPI via Trusted Publishing (OIDC) — no
+## API token stored. Register each package as a "pending publisher" on PyPI first
+## (see docs/CI-AND-SECRETS.md), then publish by creating a GitHub Release (or run
+## this workflow manually).
+
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: build + publish ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # OIDC token for PyPI Trusted Publishing (no secret needed)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { dir: ".", name: changex }
+          - { dir: "packages/core", name: changex-core }
+          - { dir: "packages/mcp", name: changex-mcp }
+          - { dir: "packages/api", name: changex-api }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build ${{ matrix.name }}
+        run: |
+          python -m pip install --upgrade build
+          python -m build --outdir dist "${{ matrix.dir }}"
+      - name: Publish ${{ matrix.name }} to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist

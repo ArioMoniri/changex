@@ -48,15 +48,29 @@ adopt Windows signing — left out of the default workflow since most users won'
 
 Linux builds are not signed (AppImage/`.deb` are distributed as-is).
 
-## Not yet wired: PyPI publishing (so `pip install changex` actually works)
+## PyPI publishing — wired (`.github/workflows/publish.yml`)
 
-The README's `pip install changex` / `uvx changex` commands assume the packages are on
-PyPI — they aren't published yet. To enable them, add a publish workflow plus **one** of:
+So that `pip install changex` / `uvx changex` work, the four packages publish to PyPI via
+**Trusted Publishing** (OIDC — no token stored). One-time setup on PyPI (only you can do
+this — it's your account):
 
-- **PyPI Trusted Publishing (recommended, no secret):** configure a trusted publisher on
-  PyPI for this repo/workflow and use `id-token: write` — no token stored at all; or
-- **`PYPI_API_TOKEN`** secret — a project-scoped token from pypi.org → Account settings →
-  API tokens.
+1. Create a free account at [pypi.org](https://pypi.org).
+2. For **each** of the four packages, add a *pending publisher*
+   (pypi.org → your account → **Publishing** → **Add a pending publisher**) with these
+   **exact** values — only the project name differs:
 
-Say the word and I'll add the publish workflow + register the four packages
-(`changex`, `changex-core`, `changex-mcp`, `changex-api`).
+   | Field | Value |
+   |-------|-------|
+   | **PyPI Project Name** | `changex` — then repeat for `changex-core`, `changex-mcp`, `changex-api` |
+   | **Owner** | `ArioMoniri` |
+   | **Repository name** | `changex` |
+   | **Workflow name** | `publish.yml` |
+   | **Environment name** | *(leave blank)* |
+
+3. Publish: create a GitHub **Release** (or run the **Publish to PyPI** workflow via
+   *Actions → Run workflow*). `publish.yml` builds + uploads all four. Done —
+   `pip install changex` / `uvx changex-mcp` then work for everyone.
+
+Alternative (token instead of Trusted Publishing): create a token at pypi.org → Account →
+API tokens, store it as the `PYPI_API_TOKEN` secret, and swap the publish step to use it.
+Trusted Publishing is preferred — nothing to store or rotate.
