@@ -27,6 +27,7 @@ from changex_core.journal.journal import Journal
 from changex_core.ops.vocabulary import op_from_dict, target_node_id
 from changex_core.passive import open_passive, seal_passive
 from changex_core.paths import safe_path
+from changex_core.render.document import render_document_html
 from changex_core.render.html import render_html, render_markdown
 from changex_core.render.server import DEFAULT_PORT, serve
 
@@ -145,8 +146,17 @@ def cmd_review(args: argparse.Namespace) -> int:
     changex_path = safe_path(args.changex, must_exist=True, allow_suffixes=(".changex", ".jsonl"))
     journal = Journal.open(str(changex_path))
     events = journal.active_events()
+    doc_path = getattr(args, "doc", None)
     if args.format == "markdown":
         report = render_markdown(events)
+    elif doc_path:
+        doc = safe_path(doc_path, must_exist=True, allow_suffixes=SUPPORTED_SUFFIXES)
+        if doc.suffix.lower() == ".docx":
+            # Show the changes inline in the document's own outline.
+            report = render_document_html(str(doc), title="ChangeX review", events=events)
+        else:
+            # The in-document outline view is docx-only today; fall back to the op log.
+            report = render_html(events)
     else:
         report = render_html(events)
     if args.out:
@@ -232,6 +242,11 @@ def build_parser() -> argparse.ArgumentParser:
     review = sub.add_parser("review", help="render an HTML/markdown redline")
     review.add_argument("changex", help=".changex journal")
     review.add_argument("--format", choices=["html", "markdown"], default="html")
+    review.add_argument(
+        "--doc",
+        help="tracked .docx — render the changes inline in the document's own outline "
+        "(instead of an op-by-op list)",
+    )
     review.add_argument("--out", help="write report to this path (else stdout)")
     review.set_defaults(func=cmd_review)
 

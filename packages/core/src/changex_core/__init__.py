@@ -92,6 +92,7 @@ from changex_core.passive import (
     open_passive,
     seal_passive,
 )
+from changex_core.render.document import render_document_html
 from changex_core.render.html import render_html, render_markdown
 from changex_core.render.save import save_active, save_active_from_path
 from changex_core.render.server import build_server, serve
@@ -154,6 +155,7 @@ __all__ = [
     # render / baseline
     "render_html",
     "render_markdown",
+    "render_document_html",
     "Baseline",
     "OutOfBandWarning",
     "snapshot",

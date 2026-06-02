@@ -39,6 +39,7 @@ above does not change.
 
 from __future__ import annotations
 
+from changex_core.render.document import render_document_html
 from changex_core.render.html import render_html, render_markdown
 
-__all__ = ["render_html", "render_markdown"]
+__all__ = ["render_html", "render_markdown", "render_document_html"]

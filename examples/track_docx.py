@@ -74,6 +74,7 @@ def run(sample: Path = _SAMPLE, out_dir: Path = _OUT_DIR) -> dict[str, object]:
     tracked_path = out_dir / "tracked.docx"
     changex_path = out_dir / "session.changex"
     html_path = out_dir / "review.html"
+    doc_html_path = out_dir / "document-review.html"
     # Start from a clean journal each run so the example is reproducible.
     if changex_path.exists():
         changex_path.unlink()
@@ -170,6 +171,11 @@ def run(sample: Path = _SAMPLE, out_dir: Path = _OUT_DIR) -> dict[str, object]:
     html = cx.render_html(journal.active_events(), title="ChangeX M0 demo review")
     markdown = cx.render_markdown(journal.active_events(), title="ChangeX M0 demo review")
     html_path.write_text(html, encoding="utf-8")
+    # Document-outline view: the changes shown inline in the file's own structure.
+    doc_html = cx.render_document_html(
+        str(tracked_path), title="ChangeX M0 demo review", events=journal.active_events()
+    )
+    doc_html_path.write_text(doc_html, encoding="utf-8")
 
     print("=== ChangeX M0 end-to-end example ===")
     print(f"baseline sha256 : {adapter.baseline_sha256()[:16]}...")
@@ -179,6 +185,7 @@ def run(sample: Path = _SAMPLE, out_dir: Path = _OUT_DIR) -> dict[str, object]:
     print(f"verify().ok     : {verify_result.ok}")
     print(f"replay matches  : {replay_matches}")
     print(f"html review     : {html_path}")
+    print(f"document review : {doc_html_path}  (changes inline in the doc outline)")
     print()
     print("--- markdown redline ---")
     print(markdown)

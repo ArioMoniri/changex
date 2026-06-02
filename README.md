@@ -113,6 +113,8 @@ changex seal  report.docx --changex report.changex   # reconstruct the journal b
 ```bash
 # 1. single-file HTML report (no server, no deps) — open locally or share as a link
 changex review report.changex --out review.html
+#    ...add --doc to show the changes INLINE in the document's own outline:
+changex review report.changex --doc report-tracked.docx --out review.html
 
 # 2. interactive local webserver (127.0.0.1; nothing leaves the machine)
 changex view   report.changex --doc report.docx
