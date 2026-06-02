@@ -64,8 +64,22 @@ from changex_core.ops.vocabulary import (
     op_to_dict,
     target_node_id,
 )
+from changex_core.diff.text_diff import (
+    ParagraphSpec,
+    ReconstructedOp,
+    diff_paragraphs,
+    reconstruct_ops,
+)
 from changex_core.ops.validation import SchemaValidationError, validate_op
+from changex_core.passive import (
+    OpenResult,
+    SealResult,
+    open_passive,
+    seal_passive,
+)
 from changex_core.render.html import render_html, render_markdown
+from changex_core.render.save import save_active, save_active_from_path
+from changex_core.render.server import build_server, serve
 
 __version__ = "0.1.0"
 
@@ -116,4 +130,18 @@ __all__ = [
     "OutOfBandWarning",
     "snapshot",
     "check_out_of_band",
+    # render: journal-aware save + interactive review server
+    "save_active",
+    "save_active_from_path",
+    "build_server",
+    "serve",
+    # passive ("native to any model") capture + diff reconstruction
+    "open_passive",
+    "seal_passive",
+    "OpenResult",
+    "SealResult",
+    "ParagraphSpec",
+    "ReconstructedOp",
+    "diff_paragraphs",
+    "reconstruct_ops",
 ]

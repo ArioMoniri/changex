@@ -42,12 +42,13 @@ and anyone can see them in a shareable report.
   prompt hash, timestamp) from MCP call context.
 - **`changex` CLI** with the model-agnostic path: `changex open <file>` (snapshot),
   `changex seal <file>` (reconstruct the attributed journal via passive diff),
-  `changex report <file>` (emit a single-file `report.html`).
+  `changex review <file> --out review.html` (emit a single-file report).
 - Quickstart configs for Claude (Code/Desktop), OpenAI, Gemini CLI, Cursor/Cline,
   and local runners (Ollama / LM Studio via an MCP-capable client).
 - **Acceptance:** (1) in an MCP client, edit a real `.docx` → native tracked changes
   + journal; (2) with NO MCP at all, `changex open` → hand/LLM edit → `changex seal`
-  produces the same journal; (3) `changex report` opens a self-contained HTML view.
+  produces the same journal; (3) `changex review --out` opens a self-contained HTML
+  view, and (4) `changex view` serves the interactive local review page.
   <10-minute setup either way.
 
 ## M2 — Passive/baseline diff (coverage guarantee)
@@ -79,9 +80,15 @@ and anyone can see them in a shareable report.
 **Goal:** a friendly, zero-install review surface, with a desktop app for those who
 want one.
 
-- **`changex view`** — serves an interactive localhost page from a `.changex` + doc:
-  inline + side-by-side, accept/reject, provenance timeline filterable by model/turn,
-  export to native tracked output. LAN-shareable; nothing leaves the machine.
+> **Status:** the `changex view` webserver landed early (alongside M1) and is
+> **available** for docx — `127.0.0.1`-bound interactive page with inline +
+> side-by-side redline, live accept/reject (revert/unrevert), and a provenance
+> timeline filterable by model/agent and seq. The **desktop app** and **legacy
+> `.doc`** ingest below remain planned.
+
+- **`changex view`** (available) — serves an interactive `127.0.0.1` page from a
+  `.changex` + doc: inline + side-by-side, live accept/reject, provenance timeline
+  filterable by model/agent and seq. Nothing leaves the machine.
 - **Optional Tauri desktop app** (`packages/viewer`) — wraps the same renderer/server
   for users who want an installable local app (Python core as a sidecar).
 - `.doc` ingest via LibreOffice-headless conversion (best-effort, documented).

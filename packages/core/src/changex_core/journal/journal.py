@@ -103,6 +103,9 @@ class Journal:
             if data.get("type") == "revert":
                 journal._reverted.add(str(data["op_id"]))
                 continue
+            if data.get("type") == "unrevert":
+                journal._reverted.discard(str(data["op_id"]))
+                continue
             event = Event.from_dict(data)
             journal._seq = event.seq
             journal._last_hash = event.hash
@@ -165,6 +168,22 @@ class Journal:
         self._reverted.add(op_id)
         self._append_line({"type": "revert", "op_id": op_id, "ts": utc_now_iso()})
 
+    def unrevert(self, op_id: str) -> None:
+        """Un-reject a previously reverted op by id (the accept side of review).
+
+        Like :meth:`revert`, this is non-destructive and itself audited: an
+        ``unrevert`` marker line is appended so the accept action is traceable,
+        and the op rejoins :meth:`active_events` / :meth:`replay`. Un-reverting an
+        op that is not currently reverted is a no-op (no marker written).
+        """
+        known = {e.op_id for e in self.read()}
+        if op_id not in known:
+            raise JournalError(f"cannot unrevert unknown op_id {op_id!r}")
+        if op_id not in self._reverted:
+            return
+        self._reverted.discard(op_id)
+        self._append_line({"type": "unrevert", "op_id": op_id, "ts": utc_now_iso()})
+
     def _append_line(self, data: dict[str, Any]) -> None:
         with self._path.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(data, ensure_ascii=False) + "\n")
@@ -207,13 +226,21 @@ class Journal:
             adapter.apply(op_from_dict(event.op))
         return adapter.to_model()
 
-    def verify(self) -> VerifyResult:
+    def verify(self, baseline_path: Optional[str] = None) -> VerifyResult:
         """Recompute the hash chain and check it matches what is on disk.
 
         Returns a :class:`VerifyResult`; ``broken_at_seq`` points at the first
         event whose recomputed hash disagrees (tamper-evidence). This does not
         guard against an adversary who rewrote the whole chain — see the threat
         model in :mod:`changex_core.journal.canonical`.
+
+        If ``baseline_path`` (or, failing that, the header's recorded
+        ``baseline_uri``) resolves to a readable file, its sha256 is recomputed
+        and compared against the header ``baseline_sha256`` to set
+        ``baseline_match`` — proving the journal is still bound to the exact
+        document it was opened against. When no baseline is available
+        ``baseline_match`` stays ``True`` (unknown is not a failure) and the
+        detail notes it was unchecked.
         """
         prev: Optional[str] = None
         for event in self.read():
@@ -231,4 +258,40 @@ class Journal:
                     detail=f"prev_hash break at seq={event.seq}",
                 )
             prev = event.hash
-        return VerifyResult(ok=True)
+
+        baseline_match, detail = self._check_baseline(baseline_path)
+        # ``ok`` reflects chain integrity (intact here); ``baseline_match`` is a
+        # separate axis so a caller can distinguish "tampered chain" from
+        # "document drifted from its baseline".
+        return VerifyResult(ok=True, baseline_match=baseline_match, detail=detail)
+
+    def _check_baseline(self, baseline_path: Optional[str]) -> tuple[bool, str]:
+        """Re-hash the on-disk baseline against the header ``baseline_sha256``.
+
+        Returns ``(baseline_match, detail)``. A missing/unreadable baseline is
+        reported as ``(True, "baseline not checked: ...")`` — unknown is not a
+        chain failure — while a present-but-mismatched baseline is a hard
+        ``(False, ...)``.
+        """
+        from changex_core.journal.canonical import sha256_hex
+        from changex_core.paths import UnsafePathError, safe_path
+
+        expected = self._header.baseline_sha256
+        if not expected:
+            return True, "baseline not checked: header has no baseline_sha256"
+
+        candidate = baseline_path or self._header.doc.get("baseline_uri")
+        if not candidate:
+            return True, "baseline not checked: no baseline path or header baseline_uri"
+        try:
+            resolved = safe_path(str(candidate), must_exist=True)
+            actual = sha256_hex(resolved.read_bytes())
+        except (UnsafePathError, OSError) as exc:
+            return True, f"baseline not checked: {exc}"
+
+        if actual == expected:
+            return True, "baseline matches header baseline_sha256"
+        return False, (
+            f"baseline mismatch: on-disk sha256 {actual[:12]}… != "
+            f"header {expected[:12]}… (document changed out of band)"
+        )

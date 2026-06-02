@@ -76,23 +76,30 @@ Operations are **format-agnostic where possible**, specialized where necessary.
 All renderers (native track changes, annotations, HTML redline) consume this same
 vocabulary regardless of whether it came from active capture or passive diff.
 
-### Text operations (docx, pptx text frames, csv cells)
+**Frozen v0.1 op set** (validated by `ops/schema.json`): `text.insert`, `text.delete`,
+`text.replace`, `node.insert`, `node.delete`, `style.change`. Everything below marked
+*reserved* is **refused by the validator** until its adapter lands.
+
+### Text operations (docx; pptx text frames + csv cells reserved)
+Positions are **node-relative and journal-ordered**, never absolute file offsets. The
+server validates the supplied `before` against the node's current text and refuses on
+mismatch (this is what prevents blind full-node overwrites).
 ```json
-{ "kind": "text.insert",  "at": 42, "text": "new clause " }
-{ "kind": "text.delete",  "start": 10, "end": 24, "deleted": "old clause" }
-{ "kind": "text.replace", "start": 10, "end": 24, "before": "old", "after": "new" }
-{ "kind": "format.run",   "props": { "bold": true }, "before": { "bold": false } }
+{ "kind": "text.insert",  "node_id": "p:00000007", "before_anchor": "after this", "text": "new clause " }
+{ "kind": "text.delete",  "node_id": "p:00000007", "before": "old clause" }
+{ "kind": "text.replace", "node_id": "p:00000007", "before": "old", "after": "new" }
+{ "kind": "format.run",   "node_id": "p:00000007", "props": { "bold": true }, "before": { "bold": false } }   // reserved
 ```
 
 ### Structural operations
 ```json
-{ "kind": "node.insert", "kind_of": "paragraph", "position": 8, "value": { … } }
-{ "kind": "node.delete", "value": { … } }          // captured for reject/replay
-{ "kind": "node.move",   "from": "/…", "to": "/…" }
-{ "kind": "style.change","style": "Heading 2", "before": "Normal" }
+{ "kind": "node.insert", "node_kind": "paragraph", "position": 8, "value": { … } }
+{ "kind": "node.delete", "node_id": "p:00000007", "value": { … } }   // value captured for reject/replay
+{ "kind": "style.change","node_id": "p:00000007", "style": "Heading 2", "before": "Normal" }
+{ "kind": "node.move",   "from": "/…", "to": "/…" }   // reserved
 ```
 
-### Spreadsheet operations (xlsx, csv)
+### Spreadsheet operations (xlsx, csv) — reserved (planned, M3)
 ```json
 { "kind": "cell.set",     "sheet": "Q3", "ref": "B7", "before": 100, "after": 125 }
 { "kind": "formula.set",  "sheet": "Q3", "ref": "C7", "before": "=B6", "after": "=B7*1.1" }
@@ -100,7 +107,7 @@ vocabulary regardless of whether it came from active capture or passive diff.
 { "kind": "row.delete",   "sheet": "Q3", "at": 7, "value": [ … ] }
 ```
 
-### Slide operations (pptx)
+### Slide operations (pptx) — reserved (planned, M4)
 ```json
 { "kind": "slide.insert", "at": 3, "value": { … } }
 { "kind": "slide.delete", "at": 3, "value": { … } }
@@ -109,15 +116,20 @@ vocabulary regardless of whether it came from active capture or passive diff.
 
 ## Stable node addressing
 
-`node_id` must survive re-parsing and unrelated edits so that `accept`/`reject` and
-replay are deterministic. Strategy (to be validated by reviewers):
+`node_id` is **opaque and edit-invariant** so that `accept`/`reject` and replay are
+deterministic. Strategy (as implemented):
 
-1. **Primary:** stable content+structure hash — `hash(kind + normalized_text +
-   sibling_index_at_capture)` truncated, namespaced by kind (`p:0007`, `cell:Q3!B7`).
-2. **Anchor repair:** on re-parse, re-resolve by (path, then nearest content match)
-   when indices shift; record a `rebind` event if an id is remapped.
-3. **Spreadsheet/csv:** natural keys (`sheet!cellref`, `row by primary-key column`)
-   are preferred over positional ids.
+1. **Primary (docx):** reuse Word's native `w14:paraId` for paragraphs (Word preserves
+   it across edits); mint a monotonic counter id for any node lacking one and inject a
+   `w:bookmark` carrier the renderer strips on accept-all. The `node_id`↔carrier map is
+   persisted in the `.changex` header.
+2. **Fallback anchor only:** a content+structure fingerprint `{paraId, char-range,
+   normalized-text, sibling-context}` is used *solely* for fuzzy re-resolution when the
+   sidecar is lost or after out-of-band edits, emitting a `rebind` event with a
+   confidence score. It is **never** the primary key — content hashes both collide
+   (duplicate paragraphs/cells) and mutate on the very edits ChangeX tracks.
+3. **Spreadsheet/csv (planned):** natural keys (`sheet!cellref`) plus a stored `rowId`
+   so a cell follows its row under row insert.
 
 ## Projections
 

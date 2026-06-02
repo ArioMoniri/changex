@@ -21,13 +21,17 @@ independently of the file.
 
 This skill drives the `changex` CLI directly. No MCP client is required (for an
 agent-native flow over MCP, point your client at the `changex-mcp` server
-instead — see `docs/INTEGRATION.md`).
+instead — see the cross-vendor guide at
+[`docs/INTEGRATION.md`](../docs/INTEGRATION.md), and the honest per-format /
+capture-mode limits at [`docs/FIDELITY.md`](../docs/FIDELITY.md)).
 
 ## When to use
 
 - Apply a set of edits to a `.docx` and get back a tracked Word file + a `.changex` journal.
 - Verify a `.changex` hash chain (tamper-evidence for accidental corruption / naive edits).
 - Render a redline review (HTML or markdown) of a session's changes with provenance.
+- Track edits from **any** model (local/offline, no tool-calling) via the passive
+  `open` → edit → `seal` flow, then review them in a browser.
 
 ## Setup (once)
 
@@ -39,7 +43,7 @@ pip install -e packages/core          # provides the `changex` console script
 changex --help
 ```
 
-## The three commands
+## The commands
 
 ### 1. `track` — apply edits as native revisions
 
@@ -69,6 +73,33 @@ changex verify session.changex
 changex review session.changex --format html     --out review.html
 changex review session.changex --format markdown                    # to stdout
 ```
+
+### 4. `view` — interactive local review webserver
+
+Serves a single-page review app from `127.0.0.1` only (nothing leaves the machine):
+inline + side-by-side redline, a provenance timeline filterable by model/agent and
+by seq, and per-change accept/reject controls that revert/unrevert ops live.
+
+```bash
+changex view session.changex --doc tracked.docx     # auto-opens the browser
+changex view session.changex --port 8765 --no-open  # print the URL, do not open
+```
+
+### 5. `open` / `seal` — passive, native to ANY model
+
+For models that can't call tools (local/offline) or any human/tool flow: snapshot a
+baseline, let anything edit the file in place, then reconstruct the journal by diff.
+
+```bash
+changex open report.docx --changex report.changex   # snapshot baseline
+# ... any model/tool/human edits report.docx ...
+changex seal report.docx --changex report.changex   # reconstruct ops via diff
+```
+
+`seal` provenance is **degraded**: `agent`/`vendor`/`turn_id`/`prompt_sha256` are
+`null`, `provenance_source="observed"`, and `rationale="reconstructed by passive
+diff"`. It faithfully records *what* changed, not *who* or *why*. See
+[`docs/FIDELITY.md`](../docs/FIDELITY.md) §2.
 
 ## Op vocabulary (frozen v0.1, docx-only)
 
@@ -121,7 +152,9 @@ yet implemented** — the CLI rejects them.
 - The hash chain gives tamper-**evidence** for accidental corruption and naive
   tampering only — not adversarial integrity (an attacker controlling the file
   can recompute the chain). Signing is deferred.
-- Passive/out-of-band edits are surfaced as a baseline-mismatch **warning**, not
-  reconstructed into ops.
-- The desktop review app (Tauri) lives in `packages/viewer` and is an optional
-  visual surface over the same `.changex` journal + HTML redline.
+- Passive/out-of-band edits are reconstructed into ops by `changex seal`, but with
+  **degraded provenance** (agent/turn/prompt `null`) — faithful *what*, not *who/why*.
+- Visualization is lightweight and your choice: a single-file `review.html` (open or
+  share as a link), the `changex view` local webserver, the document's own native
+  track changes, or the optional Tauri desktop app in `packages/viewer` — all over
+  the same `.changex` journal.

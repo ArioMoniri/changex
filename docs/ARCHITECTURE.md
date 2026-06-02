@@ -77,9 +77,11 @@ A normalized tree of addressable nodes. Node kinds span formats:
 | pptx   | `slide`, `shape`, `text_frame`, `paragraph`, `run`, `table`, `image` |
 | csv    | `row`, `cell`, `header` |
 
-Each node: `{ node_id, kind, path, value, attrs, children }`. `node_id` is a
-content+position hash stabilized across re-parses (see addressing strategy in
-CHANGEX_FORMAT.md).
+Each node: `{ node_id, node_kind, path, value, attrs, children }`. `node_id` is an
+**opaque, edit-invariant** identifier — docx paragraphs reuse Word's native
+`w14:paraId`; sub-paragraph nodes get a minted counter id (injected as a bookmark).
+A content+position fingerprint is kept only as a *fallback* anchor for fuzzy rebind
+(passive mode / lost sidecar), never as the primary key (see CHANGEX_FORMAT.md).
 
 ### 4.2 Adapters (`core/adapters`)
 One adapter per format, each implementing a common `DocumentAdapter` interface:
@@ -97,16 +99,22 @@ One adapter per format, each implementing a common `DocumentAdapter` interface:
 
 ### 4.3 Journal (`core/journal`)
 Append-only JSONL event store. Each event = one operation with provenance. Supports
-`append`, `replay`, `revert(op_id)`, `squash`, and `verify` (hash-chained for
-tamper-evidence). This is the `.changex` sidecar — the portable, format-independent
-truth. Spec: [CHANGEX_FORMAT.md](CHANGEX_FORMAT.md).
+`append`, `read`, `replay`, `revert`/`unrevert(op_id)`, and `verify` (RFC 8785 JCS
+hash-chain for tamper-evidence; `squash` is planned). This is the `.changex`
+sidecar — the portable, format-independent truth. Spec: [CHANGEX_FORMAT.md](CHANGEX_FORMAT.md).
 
 ### 4.4 Diff / baseline reconstruction (`core/diff`)
-Semantic, model-aware diff between the `open` snapshot and the `save` state, used
-only in passive mode (or to reconcile out-of-band edits). Produces the same
-operation vocabulary as active capture, so downstream renderers don't care which
-mode produced the ops. Text uses token/sentence-level alignment; tables/cells use
-key-based matching; slides use shape-identity matching.
+Diff between the `open` snapshot and the `seal` state, used in passive mode (or to
+reconcile out-of-band edits). Produces the same operation vocabulary as active
+capture, so downstream renderers don't care which mode produced the ops. **Today
+(docx):** `difflib.SequenceMatcher` aligns paragraphs, emits intra-paragraph
+`text.replace`/`insert`/`delete` for aligned-but-changed paragraphs,
+`node.insert`/`node.delete` for added/removed paragraphs, and `style.change` on
+style drift; reconstructions replay cleanly onto the baseline. Honest limit: a
+delete-plus-add in the same region may align as a single low-similarity
+`text.replace` rather than `node.delete`+`node.insert` (see [FIDELITY.md](FIDELITY.md) §2).
+Spreadsheet key-based matching and slide shape-identity matching are **planned** with
+their adapters (M3/M4).
 
 ### 4.5 Renderers (`core/render`)
 Project the journal onto a review surface:
@@ -127,10 +135,13 @@ The universal integration. Tools (initial set):
 | `save_tracked(handle, out)` | Render native track changes + write `.changex` sidecar |
 | `get_changes(handle)` | Return the provenance journal (structured) |
 | `render_review(handle, fmt)` | Produce an HTML/markdown review report |
-| `accept`/`reject(handle, op_id)` | Resolve individual changes |
+| `accept`/`reject(handle, op_id)` | Resolve individual changes *(planned for MCP; available today in the `changex view` webserver)* |
 
-Provenance (model id, session, prompt hash, tool-call id, timestamp) is captured
-from the MCP call context automatically so the agent doesn't have to self-report.
+Provenance is split into **observed** (auto-captured server-side: timestamp, session
+id, tool-call/request id, MCP `clientInfo` name/version) and **declared** (model id +
+vendor via `agent_context` at `open_tracked`; optional rationale/prompt). Bare MCP does
+not carry the user's prompt or conversation turn, so those fields are best-effort and
+labeled `provenance_source` — never claimed as "free." See [FIDELITY.md](FIDELITY.md).
 
 ### 4.7 Surfaces — "native to any model, local or cloud"
 
@@ -142,28 +153,38 @@ and **without requiring the model to be tool-capable.** Three integration tiers:
   Cline, Continue, LibreChat, Open WebUI, and local runners (Ollama / LM Studio behind
   an MCP-capable client). The agent edits through the tools → provenance is captured
   at the source.
-- **Tier 2 — `changex` CLI / "wrap any model" (passive capture).** For ANY model,
-  including local/offline ones that can't reliably call tools: `changex open <file>`
-  snapshots the baseline; the model edits the file however it likes (chat, script,
-  add-in, copy back); `changex seal <file>` reconstructs the attributed operation
-  journal via semantic diff. No tool-calling, no SDK, no vendor — works with a
+- **Tier 2 — `changex` CLI / "wrap any model" (passive capture). Available for docx.**
+  For ANY model, including local/offline ones that can't reliably call tools:
+  `changex open <file>` snapshots the baseline (preserving the exact opened bytes in a
+  sidecar); the model edits the file however it likes (chat, script, add-in, copy
+  back); `changex seal <file>` reconstructs the attributed operation journal via a
+  `difflib`-based diff (paragraph alignment + intra-paragraph text edits + node
+  insert/delete + style change). No tool-calling, no SDK, no vendor — works with a
   llama.cpp model and a text box. This is the "native to anything" guarantee.
+  Reconstructed ops carry **degraded provenance** (agent/turn/prompt `null`,
+  `provenance_source="observed"`) — faithful *what*, not *who/why* ([FIDELITY.md](FIDELITY.md)).
 - **Tier 3 — Library / SDK.** `import changex_core` to embed tracking in a custom
   agent or pipeline.
 
 **Visualization is decoupled from integration** and intentionally lightweight — pick
-whichever fits the moment:
+whichever fits the moment (the **file**, **link**, and **webserver** surfaces ship
+today for docx):
 
-- **Self-contained HTML report** — `changex report` emits a single `report.html`
-  (no server, no deps) to open locally, attach to an email, or host as a link.
-- **Local web server** — `changex view` serves an interactive localhost page (inline
-  + side-by-side, accept/reject, provenance timeline filterable by model). LAN-shareable;
-  nothing leaves the machine.
-- **Native in-file track changes** — the document itself (Word revisions, annotated
-  workbook, pptx overlay).
+- **Self-contained HTML report (file / link)** — `changex review --out review.html`
+  emits a single file (no server, no deps) to open locally, attach to an email, or
+  host as a link. **Available.**
+- **Local web server** — `changex view` serves an interactive page bound to
+  `127.0.0.1` only (inline + side-by-side, live accept/reject, provenance timeline
+  filterable by model/agent and by seq). Nothing leaves the machine. **Available.**
+- **Native in-file track changes** — the document itself (Word revisions today;
+  annotated workbook / pptx overlay planned).
 - **Optional desktop app** — the Tauri viewer (`packages/viewer`) for users who want
   an installable local app; it reuses the same HTML/webserver renderer, the Python
-  core as a sidecar.
+  core as a sidecar. **Planned.**
+
+> Honest per-format and per-capture-mode limits (what's Available vs Planned, passive
+> = degraded provenance, hash chain = tamper-evidence) are consolidated in
+> [FIDELITY.md](FIDELITY.md).
 
 - **Claude Skill** (`skill/`) — packages the CLI for Claude Code/Desktop users.
 
