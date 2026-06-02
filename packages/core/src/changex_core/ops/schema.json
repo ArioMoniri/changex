@@ -1,0 +1,165 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://changex.dev/schema/0.1/changex.json",
+  "title": "ChangeX v0.1 journal schema",
+  "description": "Schemas for the .changex header, op events, and the frozen v0.1 op set. Reserved (not-yet-implemented) ops are listed in the appendix and are rejected by validation.",
+  "definitions": {
+    "provenance": {
+      "type": "object",
+      "required": ["ts", "session_id", "provenance_source"],
+      "properties": {
+        "ts": { "type": "string" },
+        "session_id": { "type": "string" },
+        "tool_call_id": { "type": ["string", "null"] },
+        "client_name": { "type": ["string", "null"] },
+        "client_version": { "type": ["string", "null"] },
+        "agent": { "type": ["string", "null"] },
+        "vendor": { "type": ["string", "null"] },
+        "turn_id": { "type": ["string", "null"] },
+        "prompt_sha256": { "type": ["string", "null"] },
+        "rationale": { "type": ["string", "null"] },
+        "provenance_source": { "type": "string", "enum": ["observed", "declared"] }
+      },
+      "additionalProperties": false
+    },
+    "target": {
+      "type": "object",
+      "required": ["node_id", "node_kind", "path"],
+      "properties": {
+        "node_id": { "type": "string" },
+        "node_kind": { "type": "string" },
+        "path": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "op_text_insert": {
+      "type": "object",
+      "required": ["kind", "node_id", "before_anchor", "text"],
+      "properties": {
+        "kind": { "const": "text.insert" },
+        "node_id": { "type": "string" },
+        "before_anchor": { "type": ["string", "null"] },
+        "text": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "op_text_delete": {
+      "type": "object",
+      "required": ["kind", "node_id", "before"],
+      "properties": {
+        "kind": { "const": "text.delete" },
+        "node_id": { "type": "string" },
+        "before": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "op_text_replace": {
+      "type": "object",
+      "required": ["kind", "node_id", "before", "after"],
+      "properties": {
+        "kind": { "const": "text.replace" },
+        "node_id": { "type": "string" },
+        "before": { "type": "string" },
+        "after": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "op_node_insert": {
+      "type": "object",
+      "required": ["kind", "node_kind", "position", "value"],
+      "properties": {
+        "kind": { "const": "node.insert" },
+        "node_kind": { "type": "string" },
+        "position": { "type": "integer", "minimum": 0 },
+        "value": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "op_node_delete": {
+      "type": "object",
+      "required": ["kind", "node_id", "value"],
+      "properties": {
+        "kind": { "const": "node.delete" },
+        "node_id": { "type": "string" },
+        "value": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "op_style_change": {
+      "type": "object",
+      "required": ["kind", "node_id", "style", "before"],
+      "properties": {
+        "kind": { "const": "style.change" },
+        "node_id": { "type": "string" },
+        "style": { "type": "string" },
+        "before": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "op": {
+      "oneOf": [
+        { "$ref": "#/definitions/op_text_insert" },
+        { "$ref": "#/definitions/op_text_delete" },
+        { "$ref": "#/definitions/op_text_replace" },
+        { "$ref": "#/definitions/op_node_insert" },
+        { "$ref": "#/definitions/op_node_delete" },
+        { "$ref": "#/definitions/op_style_change" }
+      ]
+    },
+    "header": {
+      "type": "object",
+      "required": ["type", "changex_version", "op_schema_version", "doc", "session"],
+      "properties": {
+        "type": { "const": "header" },
+        "changex_version": { "type": "string" },
+        "op_schema_version": { "type": "string" },
+        "doc": {
+          "type": "object",
+          "required": ["baseline_sha256"],
+          "properties": {
+            "filename": { "type": ["string", "null"] },
+            "format": { "type": "string" },
+            "baseline_sha256": { "type": "string" },
+            "baseline_uri": { "type": ["string", "null"] }
+          }
+        },
+        "session": {
+          "type": "object",
+          "required": ["session_id"],
+          "properties": {
+            "session_id": { "type": "string" },
+            "started_at": { "type": "string" },
+            "capture_mode": { "type": "string", "enum": ["active", "passive"] }
+          }
+        },
+        "node_id_map": { "type": "object" },
+        "prev_hash": { "type": "null" }
+      }
+    },
+    "event": {
+      "type": "object",
+      "required": ["type", "op_id", "seq", "ts", "op_schema_version", "provenance", "target", "op", "hash", "prev_hash"],
+      "properties": {
+        "type": { "const": "op" },
+        "op_id": { "type": "string" },
+        "seq": { "type": "integer", "minimum": 1 },
+        "ts": { "type": "string" },
+        "op_schema_version": { "type": "string" },
+        "provenance": { "$ref": "#/definitions/provenance" },
+        "target": { "$ref": "#/definitions/target" },
+        "op": { "$ref": "#/definitions/op" },
+        "hash": { "type": "string" },
+        "prev_hash": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-reserved-ops-appendix": {
+    "description": "Reserved op kinds, NOT yet implemented; validation rejects them.",
+    "kinds": [
+      "format.run", "node.move",
+      "cell.set", "formula.set", "row.insert", "row.delete",
+      "slide.insert", "slide.delete", "shape.edit"
+    ]
+  }
+}

@@ -1,0 +1,119 @@
+"""ChangeX core (M0 spine): canonical model, provenance journal, docx adapter.
+
+Public API (the surface other packages — ``changex-mcp``, the CLI — code against):
+
+Model
+    ``Node``, ``NodeKind``, ``NodeIdAllocator``, ``AnchorFingerprint``,
+    ``rebind`` — addressable nodes with opaque, edit-invariant ids.
+
+Ops (frozen v0.1, docx-only)
+    ``TextInsert``, ``TextDelete``, ``TextReplace``, ``NodeInsert``,
+    ``NodeDelete``, ``StyleChange``, plus ``op_from_dict`` / ``op_to_dict`` and
+    ``validate_op``.
+
+Journal
+    ``Journal`` (append / read / replay / verify / revert), ``Header``,
+    ``Event``, ``Provenance``, ``Target``, ``VerifyResult``, and the
+    canonicalization primitives ``canonicalize`` / ``chain_hash``.
+
+Adapters
+    ``DocumentAdapter`` (the contract) and ``DocxAdapter`` (native Word
+    revisions), plus the boundary errors ``BeforeMismatchError`` /
+    ``OversizedOpError``.
+
+Render / baseline
+    ``render_html`` / ``render_markdown`` and ``snapshot`` /
+    ``check_out_of_band``.
+"""
+
+from __future__ import annotations
+
+from changex_core.adapters.base import (
+    BeforeMismatchError,
+    DocumentAdapter,
+    NodeNotFoundError,
+    OversizedOpError,
+)
+from changex_core.adapters.docx_adapter import DocxAdapter
+from changex_core.baseline import (
+    Baseline,
+    OutOfBandWarning,
+    check_out_of_band,
+    snapshot,
+)
+from changex_core.journal.canonical import canonicalize, chain_hash, sha256_hex
+from changex_core.journal.events import Event, Header, Provenance, Target
+from changex_core.journal.journal import Journal, JournalError, VerifyResult
+from changex_core.model.addressing import (
+    AnchorFingerprint,
+    NodeIdAllocator,
+    RebindResult,
+    rebind,
+)
+from changex_core.model.nodes import Node, NodeKind
+from changex_core.ops.vocabulary import (
+    OP_SCHEMA_VERSION,
+    NodeDelete,
+    NodeInsert,
+    Op,
+    StyleChange,
+    TextDelete,
+    TextInsert,
+    TextReplace,
+    op_from_dict,
+    op_to_dict,
+    target_node_id,
+)
+from changex_core.ops.validation import SchemaValidationError, validate_op
+from changex_core.render.html import render_html, render_markdown
+
+__version__ = "0.1.0"
+
+__all__ = [
+    "__version__",
+    # model
+    "Node",
+    "NodeKind",
+    "NodeIdAllocator",
+    "AnchorFingerprint",
+    "RebindResult",
+    "rebind",
+    # ops
+    "Op",
+    "TextInsert",
+    "TextDelete",
+    "TextReplace",
+    "NodeInsert",
+    "NodeDelete",
+    "StyleChange",
+    "OP_SCHEMA_VERSION",
+    "op_from_dict",
+    "op_to_dict",
+    "target_node_id",
+    "validate_op",
+    "SchemaValidationError",
+    # journal
+    "Journal",
+    "JournalError",
+    "VerifyResult",
+    "Header",
+    "Event",
+    "Provenance",
+    "Target",
+    "canonicalize",
+    "chain_hash",
+    "sha256_hex",
+    # adapters
+    "DocumentAdapter",
+    "DocxAdapter",
+    "BeforeMismatchError",
+    "OversizedOpError",
+    "NodeNotFoundError",
+    # render / baseline
+    "render_html",
+    "render_markdown",
+    "Baseline",
+    "OutOfBandWarning",
+    "snapshot",
+    "check_out_of_band",
+]

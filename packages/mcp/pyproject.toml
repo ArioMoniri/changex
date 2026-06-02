@@ -1,0 +1,57 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "changex-mcp"
+version = "0.1.0"
+description = "ChangeX MCP server: edit a .docx through an MCP client and get native Word revisions plus a portable .changex provenance journal."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "ChangeX" }]
+keywords = ["mcp", "docx", "track-changes", "provenance", "fastmcp"]
+classifiers = [
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: Apache Software License",
+    "Topic :: Office/Business :: Office Suites",
+]
+dependencies = [
+    # The official Python MCP SDK (ships FastMCP under mcp.server.fastmcp).
+    "mcp>=1.2.0",
+    # The ChangeX spine: model, journal, docx adapter, render. Pinned for the
+    # standalone `uvx changex-mcp` path; resolved from the workspace for dev.
+    "changex-core>=0.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1",
+    "mypy>=1.5",
+]
+
+[project.scripts]
+# `uvx changex-mcp` and `python -m changex_mcp` both land on the same stdio server.
+changex-mcp = "changex_mcp.server:main"
+
+# Resolve changex-core from the local workspace during development.
+[tool.uv.sources]
+changex-core = { workspace = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/changex_mcp"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/changex_mcp", "README.md"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_ignores = true
+ignore_missing_imports = true

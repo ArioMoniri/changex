@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+
+# Node / Tauri
+node_modules/
+packages/viewer/dist/
+packages/viewer/src-tauri/target/
+
+# OS
+.DS_Store
+
+# Local editor/agent settings
+.claude/settings.local.json
+
+# ChangeX working artifacts
+*.changex.tmp
+examples/out/

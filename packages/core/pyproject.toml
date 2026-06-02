@@ -1,0 +1,49 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "changex-core"
+version = "0.1.0"
+description = "ChangeX core: canonical document model, append-only provenance journal, and the docx native-revisions adapter (M0 spine)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "ChangeX" }]
+keywords = ["docx", "track-changes", "provenance", "ooxml", "event-sourcing"]
+classifiers = [
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: Apache Software License",
+    "Topic :: Office/Business :: Office Suites",
+]
+dependencies = [
+    "python-docx>=1.1.0",
+    "lxml>=4.9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1",
+    "mypy>=1.5",
+]
+
+[project.scripts]
+changex = "changex_core.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/changex_core"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/changex_core", "README.md"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_ignores = true
+ignore_missing_imports = true

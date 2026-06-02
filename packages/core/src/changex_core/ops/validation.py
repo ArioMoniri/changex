@@ -1,0 +1,133 @@
+"""Lightweight, dependency-free validation of v0.1 ops, headers and events.
+
+The published contract is ``schema.json`` (JSON Schema draft-07). To keep the
+core importable with **zero external dependencies**, this module hand-rolls the
+subset of validation we actually need (required keys, allowed kinds, type
+checks, reserved-op rejection) rather than pulling in ``jsonschema`` at runtime.
+
+The JSON Schema remains the source of truth and is what downstream consumers /
+other languages validate against; this module is kept in lock-step with it.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+from changex_core.ops.vocabulary import (
+    OP_SCHEMA_VERSION,
+    V01_KINDS,
+    _RESERVED_KINDS,
+)
+
+SCHEMA_PATH = Path(__file__).with_name("schema.json")
+
+# Required keys per v0.1 op kind, mirroring schema.json definitions.
+_OP_REQUIRED: dict[str, set[str]] = {
+    "text.insert": {"kind", "node_id", "before_anchor", "text"},
+    "text.delete": {"kind", "node_id", "before"},
+    "text.replace": {"kind", "node_id", "before", "after"},
+    "node.insert": {"kind", "node_kind", "position", "value"},
+    "node.delete": {"kind", "node_id", "value"},
+    "style.change": {"kind", "node_id", "style", "before"},
+}
+
+
+class SchemaValidationError(ValueError):
+    """Raised when an op / header / event fails v0.1 validation."""
+
+
+def load_schema() -> dict[str, Any]:
+    """Load and return the published JSON Schema document."""
+    return json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+
+
+def validate_op(op: dict[str, Any]) -> None:
+    """Validate a single op dict against the v0.1 op set.
+
+    Raises:
+        SchemaValidationError: on a reserved/unknown kind, missing keys, or a
+            wrong-typed required field.
+    """
+    if not isinstance(op, dict):
+        raise SchemaValidationError("op must be a JSON object")
+    kind = op.get("kind")
+    if kind in _RESERVED_KINDS:
+        raise SchemaValidationError(
+            f"op kind {kind!r} is reserved/not-yet-implemented in v{OP_SCHEMA_VERSION}"
+        )
+    if kind not in V01_KINDS:
+        raise SchemaValidationError(f"unknown op kind {kind!r}")
+    required = _OP_REQUIRED[kind]
+    missing = required - set(op.keys())
+    if missing:
+        raise SchemaValidationError(f"op {kind!r} missing keys: {sorted(missing)}")
+    extra = set(op.keys()) - required
+    if extra:
+        raise SchemaValidationError(f"op {kind!r} has unexpected keys: {sorted(extra)}")
+    _check_op_types(kind, op)
+
+
+def _check_op_types(kind: str, op: dict[str, Any]) -> None:
+    if kind == "node.insert":
+        if not isinstance(op["position"], int) or isinstance(op["position"], bool):
+            raise SchemaValidationError("node.insert.position must be an integer")
+        if op["position"] < 0:
+            raise SchemaValidationError("node.insert.position must be >= 0")
+        if not isinstance(op["value"], dict):
+            raise SchemaValidationError("node.insert.value must be an object")
+    elif kind == "node.delete":
+        if not isinstance(op["value"], dict):
+            raise SchemaValidationError("node.delete.value must be an object")
+    if "before_anchor" in op and op["before_anchor"] is not None:
+        if not isinstance(op["before_anchor"], str):
+            raise SchemaValidationError("before_anchor must be a string or null")
+    for str_field in ("node_id", "text", "before", "after", "style", "node_kind"):
+        if str_field in op and not isinstance(op[str_field], str):
+            raise SchemaValidationError(f"{kind}.{str_field} must be a string")
+
+
+def validate_header(header: dict[str, Any]) -> None:
+    """Validate a ``.changex`` header line."""
+    if header.get("type") != "header":
+        raise SchemaValidationError("header.type must be 'header'")
+    for key in ("changex_version", "op_schema_version", "doc", "session"):
+        if key not in header:
+            raise SchemaValidationError(f"header missing {key!r}")
+    doc = header["doc"]
+    if not isinstance(doc, dict) or "baseline_sha256" not in doc:
+        raise SchemaValidationError("header.doc must contain baseline_sha256")
+    session = header["session"]
+    if not isinstance(session, dict) or "session_id" not in session:
+        raise SchemaValidationError("header.session must contain session_id")
+
+
+def validate_event(event: dict[str, Any]) -> None:
+    """Validate a full op event line (envelope + provenance + op)."""
+    if event.get("type") != "op":
+        raise SchemaValidationError("event.type must be 'op'")
+    for key in (
+        "op_id",
+        "seq",
+        "ts",
+        "op_schema_version",
+        "provenance",
+        "target",
+        "op",
+        "hash",
+        "prev_hash",
+    ):
+        if key not in event:
+            raise SchemaValidationError(f"event missing {key!r}")
+    if not isinstance(event["seq"], int) or isinstance(event["seq"], bool) or event["seq"] < 1:
+        raise SchemaValidationError("event.seq must be an integer >= 1")
+    prov = event["provenance"]
+    if not isinstance(prov, dict):
+        raise SchemaValidationError("event.provenance must be an object")
+    if prov.get("provenance_source") not in ("observed", "declared"):
+        raise SchemaValidationError("provenance_source must be 'observed' or 'declared'")
+    target = event["target"]
+    if not isinstance(target, dict) or "node_id" not in target:
+        raise SchemaValidationError("event.target must contain node_id")
+    validate_op(event["op"])

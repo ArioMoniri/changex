@@ -1,0 +1,42 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "ChangeX Viewer",
+  "version": "0.1.0",
+  "identifier": "net.changex.viewer",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "ChangeX Viewer",
+        "width": 1180,
+        "height": 820,
+        "minWidth": 720,
+        "minHeight": 540,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.png"
+    ],
+    "category": "Productivity",
+    "shortDescription": "Review ChangeX provenance journals.",
+    "longDescription": "Desktop review surface for ChangeX .changex journals: HTML redline + provenance timeline, backed by the changex-core Python sidecar."
+  },
+  "plugins": {
+    "shell": {
+      "open": false
+    }
+  }
+}

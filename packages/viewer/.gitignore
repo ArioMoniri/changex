@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# Rust / Tauri build artifacts
+src-tauri/target/
+src-tauri/gen/
+
+# OS
+.DS_Store
