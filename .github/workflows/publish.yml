@@ -1,7 +1,13 @@
-## Publishes the four ChangeX packages to PyPI via Trusted Publishing (OIDC) — no
-## API token stored. Register each package as a "pending publisher" on PyPI first
-## (see docs/CI-AND-SECRETS.md), then publish by creating a GitHub Release (or run
-## this workflow manually).
+## Publishes the four ChangeX packages to PyPI.
+##
+## Two auth modes, auto-selected:
+##   * If the repo secret PYPI_API_TOKEN is set -> publish with that token
+##     (no pending publishers needed — the simplest path, and the way around the
+##     pending-publisher rate limit / monorepo UX issue).
+##   * Otherwise -> Trusted Publishing via OIDC (requires the 4 pending publishers;
+##     see docs/CI-AND-SECRETS.md).
+##
+## Trigger: create a GitHub Release, or run manually (Actions -> Run workflow).
 
 name: Publish to PyPI
 
@@ -18,7 +24,9 @@ jobs:
     name: build + publish ${{ matrix.name }}
     runs-on: ubuntu-latest
     permissions:
-      id-token: write # OIDC token for PyPI Trusted Publishing (no secret needed)
+      id-token: write # OIDC for Trusted Publishing (used only when no token secret is set)
+    env:
+      HAS_TOKEN: ${{ secrets.PYPI_API_TOKEN != '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -32,11 +40,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
       - name: Build ${{ matrix.name }}
         run: |
           python -m pip install --upgrade build
           python -m build --outdir dist "${{ matrix.dir }}"
-      - name: Publish ${{ matrix.name }} to PyPI
+
+      # Preferred when you've hit the pending-publisher wall: an API token.
+      - name: Publish ${{ matrix.name }} (API token)
+        if: env.HAS_TOKEN == 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+      # Otherwise, Trusted Publishing (OIDC) — needs the 4 pending publishers registered.
+      - name: Publish ${{ matrix.name }} (Trusted Publishing)
+        if: env.HAS_TOKEN != 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist

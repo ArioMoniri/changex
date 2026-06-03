@@ -71,6 +71,23 @@ this — it's your account):
    *Actions → Run workflow*). `publish.yml` builds + uploads all four. Done —
    `pip install changex` / `uvx changex-mcp` then work for everyone.
 
-Alternative (token instead of Trusted Publishing): create a token at pypi.org → Account →
-API tokens, store it as the `PYPI_API_TOKEN` secret, and swap the publish step to use it.
-Trusted Publishing is preferred — nothing to store or rotate.
+### If the pending-publisher form errors ("temporarily unavailable") — use an API token
+
+PyPI **rate-limits pending-publisher creation** and has a known monorepo rough edge
+([warehouse#16920](https://github.com/pypi/warehouse/issues/16920)), so adding 4 in a row
+often fails with a generic "outage" message even though PyPI is up. The token route skips
+that form entirely and `publish.yml` already supports it (auto-detected):
+
+1. pypi.org → **Account settings** → **API tokens** → **Add API token**.
+   - Name: `changex-github` (anything). **Scope: "Entire account"** — required for the
+     *first* upload, since the projects don't exist yet to scope to.
+   - Copy the token (starts with `pypi-…`).
+2. GitHub → repo **Settings → Secrets and variables → Actions → New repository secret**:
+   - Name: `PYPI_API_TOKEN`  ·  Value: the `pypi-…` token.
+3. Run **Actions → Publish to PyPI → Run workflow** (or cut a Release). It builds + uploads
+   all four. No pending publishers needed.
+4. *(optional, after first publish)* the projects now exist — you can delete the
+   account-scoped token and switch to per-project tokens or add Trusted Publishers to the
+   existing projects for tighter security, then remove the `PYPI_API_TOKEN` secret.
+
+You only need **one** account-scoped token for all four packages.
