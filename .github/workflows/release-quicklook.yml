@@ -48,7 +48,10 @@ jobs:
             security set-key-partition-list -S apple-tool:,apple: -s -k "$KP" "$KC" >/dev/null
             security list-keychains -d user -s "$KC" login.keychain-db
             ID="$APPLE_SIGNING_IDENTITY"
+            # The extension MUST keep its App Sandbox entitlement (pkd rejects
+            # unsandboxed Quick Look plug-ins), so sign it WITH the entitlements.
             codesign --force --options runtime --timestamp --keychain "$KC" --sign "$ID" \
+              --entitlements Extension/QuickLookExtension.entitlements \
               "$APP/Contents/PlugIns/QuickLookExtension.appex"
             codesign --force --options runtime --timestamp --keychain "$KC" --sign "$ID" "$APP"
             codesign --verify --deep --strict --verbose=2 "$APP"

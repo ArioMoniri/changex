@@ -6,7 +6,7 @@ options:
   createIntermediateGroups: true
 settings:
   base:
-    MARKETING_VERSION: "0.1.9"
+    MARKETING_VERSION: "0.1.10"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.0"
 targets:
@@ -29,6 +29,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.changex.ChangeXQuickLook.QuickLookExtension
         INFOPLIST_FILE: Extension/Info.plist
+        # Quick Look preview extensions MUST be sandboxed or pkd refuses to load them.
+        CODE_SIGN_ENTITLEMENTS: Extension/QuickLookExtension.entitlements
     dependencies:
       - sdk: Quartz.framework
       - sdk: WebKit.framework
