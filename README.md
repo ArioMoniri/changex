@@ -38,18 +38,23 @@ Then just ask 💬 — *"Open report.docx with changex, tighten the intro and fi
 ```bash
 changex open report.docx     # 📸 snapshot the original
 #  …anything edits report.docx in place (a model, a script, or you)…
-changex seal report.docx     # 🔍 reconstruct what changed
+changex seal report.docx     # 🔍 reconstruct the changes → report.changex + report.tracked.docx
 ```
 
 👉 Per-app setup for **ChatGPT, Gemini, Cursor, Cline, Ollama, LM Studio**: [docs/CALL-FROM-YOUR-APP.md](docs/CALL-FROM-YOUR-APP.md)
 
 ## 👀 See the changes — your pick
 
+`changex seal` prints these for you with your real paths — or run them on the
+`.changex` + tracked `.docx`:
+
 ```bash
-changex review s.changex --doc tracked.docx --out review.html   # 📄 inline in the doc's own outline
-changex view   s.changex --doc tracked.docx                     # 🌐 live local page (accept / reject)
-#  …or just open the tracked .docx in Word — real native track changes 🖊️
+changex review report.changex --doc report.tracked.docx --out review.html   # 📄 inline in the doc's outline
+changex view   report.changex --doc report.tracked.docx                     # 🌐 live local page (accept/reject)
+#  …or just open report.tracked.docx in Word — real native track changes 🖊️
 ```
+
+💡 Paths with spaces need quotes: `changex open "My Report.docx"`.
 
 ## 📦 What it tracks
 
@@ -69,7 +74,7 @@ A diff tells you *how two files differ*. ChangeX tells you **what the AI actuall
 
 📥 [Install](docs/INSTALL.md) · 🔌 [Integrations](docs/INTEGRATION.md) · 🏗️ [Architecture](docs/ARCHITECTURE.md) · 🛣️ [Roadmap](docs/ROADMAP.md) · 📐 [.changex format](docs/CHANGEX_FORMAT.md)
 
-🎬 **Try it on all formats right now:** `python scripts/demo_all_formats.py`
+🎬 **Try all formats:** `python scripts/demo_all_formats.py` · 🐚 **Prefer code?** `changex shell` (Python with ChangeX preloaded)
 
 ## 📜 License
 

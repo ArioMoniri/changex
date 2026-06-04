@@ -20,6 +20,7 @@ import json
 import sys
 from typing import Sequence
 
+from changex_core import ui
 from changex_core.adapters import SUPPORTED_SUFFIXES, load_adapter
 from changex_core.adapters.docx_adapter import DEFAULT_AUTHOR
 from changex_core.journal.events import Header, Provenance, Target, utc_now_iso
@@ -188,30 +189,70 @@ def cmd_view(args: argparse.Namespace) -> int:
 def cmd_open(args: argparse.Namespace) -> int:
     """Passive open: snapshot the baseline and write a pending passive header."""
     result = open_passive(args.docx, args.changex)
-    print(f"passive session opened (capture_mode=passive)")
-    print(f"  baseline    : {result.baseline.uri}")
-    print(f"  baseline_sha: {result.baseline.sha256}")
-    print(f"  paragraphs  : {result.paragraphs}")
-    print(f"  .changex    : {result.changex_path}")
-    print("  any model/tool/human may now edit the .docx; run `changex seal` after.")
+    print(ui.ok("passive session opened") + ui.c("  (capture_mode=passive)", "dim"))
+    print(ui.field("baseline", result.baseline.uri))
+    print(ui.field("baseline_sha", result.baseline.sha256))
+    print(ui.field("paragraphs", result.paragraphs))
+    print(ui.field(".changex", result.changex_path))
+    print()
+    print("  Any model / tool / human may now edit the .docx. Then run:")
+    print(ui.cmd(f'changex seal "{args.docx}"'))
     return 0
 
 
 def cmd_seal(args: argparse.Namespace) -> int:
     """Passive seal: diff current docx vs baseline and append reconstructed ops."""
     result = seal_passive(args.docx, args.changex)
-    print("passive seal complete (DEGRADED provenance — reconstructed by diff)")
-    print(f"  .changex      : {result.changex_path}")
+    print(ui.ok("passive seal complete") + ui.c("  (DEGRADED provenance — reconstructed by diff)", "dim"))
+    print(ui.field(".changex", result.changex_path))
     if result.baseline_unchanged:
         print("  no changes detected vs baseline; nothing appended.")
         return 0
     print(
-        f"  ops appended  : {result.appended} "
-        f"(replace={result.replaced}, insert={result.inserted}, "
-        f"delete={result.deleted}, style={result.style_changed})"
+        ui.field(
+            "ops appended",
+            f"{result.appended} (replace={result.replaced}, insert={result.inserted}, "
+            f"delete={result.deleted}, style={result.style_changed})",
+        )
     )
-    print("  NOTE: provenance is degraded — agent/vendor/turn/prompt are null,")
-    print("        provenance_source='observed', rationale='reconstructed by passive diff'.")
+    if result.tracked_path:
+        print(
+            ui.field("tracked .docx", result.tracked_path)
+            + ui.c("  ← open in Word for native accept/reject", "dim")
+        )
+    cxp = result.changex_path
+    print()
+    print("  " + ui.c("See what changed:", "bold"))
+    if result.tracked_path:
+        print(ui.cmd(f'changex review "{cxp}" --doc "{result.tracked_path}" --out review.html'))
+        print(ui.cmd(f'changex view   "{cxp}" --doc "{result.tracked_path}"'))
+    else:
+        print(ui.cmd(f'changex review "{cxp}" --out review.html'))
+        print(ui.cmd(f'changex view   "{cxp}"'))
+    print()
+    print("  " + ui.warn("provenance is degraded — agent/vendor/turn/prompt are null."))
+    return 0
+
+
+def cmd_shell(args: argparse.Namespace) -> int:
+    """Drop into an interactive Python shell with changex_core preloaded."""
+    import code
+
+    import changex_core as cx
+    from changex_core.adapters import load_adapter
+
+    def load(path: str, **kwargs):
+        """load('file.docx') -> a DocumentAdapter for the file (any supported format)."""
+        return load_adapter(path, **kwargs)
+
+    ns = {"cx": cx, "load_adapter": load_adapter, "load": load}
+    intro = ui.banner("interactive shell — changex_core is loaded")
+    intro += (
+        "  " + ui.c("cx", "bold", "cyan") + " = changex_core    "
+        + ui.c("load('report.docx')", "bold", "cyan") + " -> adapter    "
+        + ui.c("Ctrl-D to exit", "dim") + "\n"
+    )
+    code.interact(banner=intro, local=ns, exitmsg=ui.c("bye 👋", "dim"))
     return 0
 
 
@@ -276,13 +317,24 @@ def build_parser() -> argparse.ArgumentParser:
     seal.add_argument("docx", help="the (now edited) .docx to seal")
     seal.add_argument("--changex", help="the .changex from `open` (default: next to the docx)")
     seal.set_defaults(func=cmd_seal)
+
+    shell = sub.add_parser(
+        "shell", help="interactive Python shell with changex_core preloaded (cx, load())"
+    )
+    shell.set_defaults(func=cmd_shell)
+
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry point."""
     parser = build_parser()
-    args = parser.parse_args(argv)
+    argv_list = list(sys.argv[1:] if argv is None else argv)
+    if not argv_list:
+        ui.print_banner()
+        parser.print_help()
+        return 0
+    args = parser.parse_args(argv_list)
     return int(args.func(args))
 
 

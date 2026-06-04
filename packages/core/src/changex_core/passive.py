@@ -30,6 +30,7 @@ from changex_core.journal.journal import Journal
 from changex_core.model.nodes import NodeKind
 from changex_core.ops.vocabulary import op_from_dict
 from changex_core.paths import safe_path
+from changex_core.render.save import save_active
 
 CAPTURE_MODE = "passive"
 PASSIVE_RATIONALE = "reconstructed by passive diff"
@@ -114,6 +115,7 @@ class SealResult:
     style_changed: int
     baseline_unchanged: bool
     degraded: bool = True
+    tracked_path: Optional[Path] = None
 
 
 def open_passive(docx: str, changex: Optional[str] = None) -> OpenResult:
@@ -205,6 +207,21 @@ def seal_passive(docx: str, changex: Optional[str] = None) -> SealResult:
         journal.append(op, target, _passive_provenance(session_id))
 
     baseline_unchanged = not diff.ops
+
+    # Best-effort: also render a Word-openable tracked .docx by replaying the
+    # reconstructed ops onto the baseline, so the passive path has something for
+    # `changex review --doc` / `changex view --doc` / Word. Reconstructed ops can be
+    # coarse (whole-paragraph), which may trip the active adapter's size guard — if
+    # so we still return the journal, just without a tracked file.
+    tracked_path: Optional[Path] = None
+    if diff.ops:
+        candidate = changex_path.with_name(changex_path.stem + ".tracked.docx")
+        try:
+            save_active(journal, str(baseline_path), str(candidate), author="passive (reconstructed)")
+            tracked_path = candidate
+        except Exception:
+            tracked_path = None
+
     return SealResult(
         changex_path=changex_path,
         appended=diff.total,
@@ -214,4 +231,5 @@ def seal_passive(docx: str, changex: Optional[str] = None) -> SealResult:
         style_changed=diff.style_changed,
         baseline_unchanged=baseline_unchanged,
         degraded=True,
+        tracked_path=tracked_path,
     )
