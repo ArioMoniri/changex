@@ -143,7 +143,18 @@ This path sees only before-and-after bytes, so it records a **faithful *what-cha
 
 ## 🔌 Set up your app
 
-ChangeX plugs in three ways — **local MCP** (the app spawns `changex-mcp` on your machine), **remote MCP** (the app dials a URL), or **REST/function tools**. Pick your app:
+**Easiest — one command writes the config for you:**
+
+```bash
+changex connect                  # list every app it can set up
+changex connect claude-desktop   # writes the Desktop app config  (then ⌘Q + reopen)
+changex connect cursor           # writes ~/.cursor/mcp.json
+changex connect chatgpt          # prints the ChatGPT connector runbook (token + commands)
+```
+
+`changex connect <app>` merges the right MCP entry into that app's config — **backing the file up first** and using the absolute `changex-mcp` path so GUI apps find it. Targets: `claude-code` · `claude-desktop` · `cursor` · `cline` · `gemini` · `chatgpt` · `claude-web`.
+
+Or wire it by hand — ChangeX plugs in three ways (**local MCP** = the app spawns `changex-mcp`; **remote MCP** = the app dials a URL; **REST/function tools**). Pick your app:
 
 | Your app | How it connects | Reads local files? |
 |---|---|---|
@@ -162,6 +173,8 @@ ChangeX plugs in three ways — **local MCP** (the app spawns `changex-mcp` on y
 
 <br>
 
+> **One command:** `changex connect claude-code` — or by hand:
+
 ```bash
 claude mcp add -s user changex -- changex-mcp   # once; works in every folder, no duplicates
 claude mcp list                                 # changex → ✓ Connected
@@ -175,6 +188,8 @@ This is the **only** thing `claude mcp list` reflects — it does *not* configur
 <summary><b>🟧 Claude Desktop app</b> (separate from Claude Code!)</summary>
 
 <br>
+
+> **One command:** `changex connect claude-desktop`, then ⌘Q + reopen. Or by hand:
 
 1. Get the absolute path: `which changex-mcp` → e.g. `/opt/homebrew/bin/changex-mcp`.
 2. Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
@@ -191,6 +206,8 @@ This is the **only** thing `claude mcp list` reflects — it does *not* configur
 <summary><b>🟩 ChatGPT (desktop or web)</b></summary>
 
 <br>
+
+> **One command:** `changex connect chatgpt` prints the token + exact commands below.
 
 ChatGPT dials a **URL** (it can't reach `localhost`), so run the HTTP server and expose it with a tunnel — the server runs on your Mac, so it still edits your **local** files:
 
@@ -221,6 +238,8 @@ Same as the ChatGPT connector — run `changex-mcp --http` + a tunnel + a token,
 
 <br>
 
+> **One command:** `changex connect cursor` (or `changex connect cline`). Or by hand:
+
 Add to `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global) — Cline uses the same block in its MCP settings:
 
 ```json
@@ -233,6 +252,8 @@ Add to `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global) — Cline u
 <summary><b>🟨 Gemini (CLI / API)</b></summary>
 
 <br>
+
+> **One command (CLI):** `changex connect gemini`. Or by hand:
 
 **CLI** — add to `~/.gemini/settings.json`:
 
@@ -357,6 +378,9 @@ Run `changex` (or `changex help`) for the full list:
   Passive — any model, even offline
     open     snapshot the baseline before anything edits the file
     seal     diff the edited file → reconstruct the tracked changes
+
+  Connect to an app
+    connect  wire ChangeX into Claude / ChatGPT / Cursor / Gemini / … (writes the config)
 
   Extras
     shell    interactive Python shell with changex_core preloaded

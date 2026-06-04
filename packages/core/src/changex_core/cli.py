@@ -23,6 +23,7 @@ from typing import Sequence
 from changex_core import ui
 from changex_core.adapters import SUPPORTED_SUFFIXES, load_adapter
 from changex_core.adapters.docx_adapter import DEFAULT_AUTHOR
+from changex_core.connect import connect, target_names
 from changex_core.journal.events import Header, Provenance, Target, utc_now_iso
 from changex_core.journal.journal import Journal
 from changex_core.ops.vocabulary import op_from_dict, target_node_id
@@ -256,6 +257,11 @@ def cmd_shell(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_connect(args: argparse.Namespace) -> int:
+    """Wire ChangeX into an LLM app — write the client config or print the runbook."""
+    return connect(getattr(args, "target", None))
+
+
 _HELP_GROUPS = [
     (
         "Track & review",
@@ -271,6 +277,12 @@ _HELP_GROUPS = [
         [
             ("open", "snapshot the baseline before anything edits the file"),
             ("seal", "diff the edited file → reconstruct the tracked changes"),
+        ],
+    ),
+    (
+        "Connect to an app",
+        [
+            ("connect", "wire ChangeX into Claude / ChatGPT / Cursor / Gemini / … (writes the config)"),
         ],
     ),
     (
@@ -379,6 +391,18 @@ def build_parser() -> argparse.ArgumentParser:
         "shell", help="interactive Python shell with changex_core preloaded (cx, load())"
     )
     shell.set_defaults(func=cmd_shell)
+
+    connect_p = sub.add_parser(
+        "connect",
+        help="wire ChangeX into an LLM app (claude-code/claude-desktop/chatgpt/cursor/gemini/…)",
+    )
+    connect_p.add_argument(
+        "target",
+        nargs="?",
+        choices=target_names(),
+        help="the app to set up (omit to list the options)",
+    )
+    connect_p.set_defaults(func=cmd_connect)
 
     help_p = sub.add_parser("help", help="show the grouped command list")
     help_p.set_defaults(func=cmd_help)

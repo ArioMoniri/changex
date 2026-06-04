@@ -18,6 +18,12 @@ There are three ways ChangeX plugs into an app, and each app below uses one:
    plain HTTP over the same core, for ChatGPT custom-GPT **Actions**, OpenAI/Gemini
    function calling, or any client that can't speak MCP.
 
+> 💡 **Shortcut — `changex connect <app>`.** Instead of hand-editing the JSON below, run
+> `changex connect claude-desktop` / `cursor` / `gemini` (it merges the entry, backs the
+> file up, and uses the absolute binary path), or `changex connect chatgpt` / `claude-web`
+> to print the remote-connector runbook with a fresh token. Run `changex connect` to list
+> targets. The recipes below are the same wiring done by hand.
+
 When none of those fit (a fully offline, no-tool-calling model, or a human), use the
 **passive `changex open` / `seal`** path — it works with anything that reads and writes
 the file. Passive capture is faithful for *what changed* but has **degraded provenance**
