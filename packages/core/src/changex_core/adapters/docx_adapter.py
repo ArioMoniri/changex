@@ -25,7 +25,6 @@ These two equalities are the gating M0 round-trip criterion.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from docx import Document
 from docx.oxml.ns import qn

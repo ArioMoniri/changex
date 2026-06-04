@@ -25,6 +25,7 @@ from changex_core.adapters import SUPPORTED_SUFFIXES, load_adapter
 from changex_core.adapters.docx_adapter import DEFAULT_AUTHOR
 from changex_core.connect import connect, target_names
 from changex_core.doctor import doctor
+from changex_core.quicklook import quicklook
 from changex_core.journal.events import Header, Provenance, Target, utc_now_iso
 from changex_core.journal.journal import Journal
 from changex_core.ops.vocabulary import op_from_dict, target_node_id
@@ -281,6 +282,11 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     return doctor(open_settings=getattr(args, "open_settings", False))
 
 
+def cmd_quicklook(args: argparse.Namespace) -> int:
+    """Manage the macOS Quick Look preview for .changex files."""
+    return quicklook(getattr(args, "action", None))
+
+
 _HELP_GROUPS = [
     (
         "Track & review",
@@ -308,6 +314,7 @@ _HELP_GROUPS = [
         "Diagnose & fix",
         [
             ("doctor", "check the install + fix macOS file-access (Full Disk Access)"),
+            ("quicklook", "manage the macOS Quick Look preview for .changex files"),
         ],
     ),
     (
@@ -446,6 +453,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="open the macOS Full Disk Access settings pane",
     )
     doctor_p.set_defaults(func=cmd_doctor)
+
+    ql_p = sub.add_parser(
+        "quicklook", help="manage the macOS Quick Look preview for .changex files"
+    )
+    ql_p.add_argument(
+        "action",
+        nargs="?",
+        choices=["status", "enable", "disable", "open"],
+        default="status",
+        help="status (default) · enable · disable · open",
+    )
+    ql_p.set_defaults(func=cmd_quicklook)
 
     help_p = sub.add_parser("help", help="show the grouped command list")
     help_p.set_defaults(func=cmd_help)

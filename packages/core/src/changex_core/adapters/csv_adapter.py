@@ -26,7 +26,7 @@ from __future__ import annotations
 import csv
 import io
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from changex_core.adapters.base import (
     BeforeMismatchError,

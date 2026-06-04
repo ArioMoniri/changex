@@ -45,3 +45,7 @@ docs/assets/_render/
 packages/viewer/src-tauri/icons/64x64.png
 packages/viewer/src-tauri/icons/android/
 packages/viewer/src-tauri/icons/ios/
+
+# ChangeX QuickLook (Xcode) — generated project + build output
+packages/quicklook/build/
+packages/quicklook/*.xcodeproj/
