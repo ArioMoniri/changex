@@ -54,8 +54,17 @@ jobs:
         shell: bash
         run: |
           IM=$(command -v magick || command -v convert)
-          "$IM" -size 1024x1024 xc:'#4f46e5' -fill white -gravity center \
-            -pointsize 420 -font Helvetica -annotate 0 'CX' src-tauri/icons/_source.png
+          # Font-free placeholder: a white "document" glyph on an indigo square.
+          # Drawn with primitives only — no -font/-annotate, which fails on runners
+          # that have no Helvetica installed (ImageMagick: "unable to read font 'Helvetica'").
+          # Swap in a real icon for production.
+          "$IM" -size 1024x1024 xc:'#4f46e5' \
+            -fill none -stroke white -strokewidth 36 -draw "roundrectangle 312,250 712,774 44,44" \
+            -fill white -stroke none \
+            -draw "rectangle 392,360 632,404" \
+            -draw "rectangle 392,476 632,520" \
+            -draw "rectangle 392,592 560,636" \
+            src-tauri/icons/_source.png
           npx --yes @tauri-apps/cli@^2 icon src-tauri/icons/_source.png
 
       - name: Build (and sign/notarize if secrets are present)
