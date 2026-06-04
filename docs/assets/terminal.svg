@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 410" width="880" height="410" role="img" aria-label="A terminal session: changex open report.docx, then changex seal report.docx">
+  <title>changex open / seal — capture changes from any model with no tools</title>
+  <desc>A terminal window showing: $ changex open report.docx (snapshots the baseline), then any model or a human edits the file, then $ changex seal report.docx (reconstructs the tracked changes and a Word-openable .docx).</desc>
+  <defs>
+    <linearGradient id="tbg" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#0b1020"/>
+      <stop offset="1" stop-color="#141d33"/>
+    </linearGradient>
+    <style>
+      .mono { font: 400 14.5px ui-monospace,'SF Mono',Menlo,Consolas,monospace; fill:#e6ecf7; }
+      .ttl  { font: 600 13px ui-sans-serif,system-ui,sans-serif; fill:#8ea0be; }
+      .dim  { fill:#7e8db0; }
+      .ok   { fill:#69db8a; }
+      .path { fill:#7fd1e0; }
+      .amber{ fill:#e6b667; }
+      .cmt  { fill:#6f7e9e; font-style:italic; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="880" height="410" rx="16" fill="url(#tbg)"/>
+  <rect x="0.75" y="0.75" width="878.5" height="408.5" rx="15.25" fill="none" stroke="#26324f"/>
+
+  <!-- title bar -->
+  <circle cx="28" cy="26" r="6" fill="#ff5f57"/>
+  <circle cx="48" cy="26" r="6" fill="#febc2e"/>
+  <circle cx="68" cy="26" r="6" fill="#28c840"/>
+  <text class="ttl" x="440" y="30" text-anchor="middle">changex — capture changes from any model, no tools required</text>
+  <line x1="0" y1="50" x2="880" y2="50" stroke="#26324f"/>
+
+  <!-- body -->
+  <text class="mono" x="28" y="84"><tspan class="dim">$ </tspan>changex open report.docx</text>
+  <text class="mono" x="28" y="110"><tspan class="ok">✓ </tspan>passive session opened   <tspan class="dim">(capture_mode=passive)</tspan></text>
+  <text class="mono" x="28" y="134"><tspan class="dim">  baseline    : </tspan><tspan class="path">report.baseline.docx</tspan></text>
+  <text class="mono" x="28" y="158"><tspan class="dim">  paragraphs  : </tspan>9</text>
+
+  <text class="mono cmt" x="28" y="200">  # → Claude · ChatGPT · Gemini · a local model · or you edit report.docx</text>
+
+  <text class="mono" x="28" y="242"><tspan class="dim">$ </tspan>changex seal report.docx</text>
+  <text class="mono" x="28" y="268"><tspan class="ok">✓ </tspan>passive seal complete   <tspan class="dim">(reconstructed by diff — degraded provenance)</tspan></text>
+  <text class="mono" x="28" y="292"><tspan class="dim">  ops appended : </tspan>5  <tspan class="dim">(replace 3 · insert 1 · delete 1)</tspan></text>
+  <text class="mono" x="28" y="316"><tspan class="dim">  tracked .docx: </tspan><tspan class="path">report.tracked.docx</tspan><tspan class="amber">   ← open in Word to accept/reject</tspan></text>
+
+  <text class="mono" x="28" y="358"><tspan class="dim">  See what changed:</tspan></text>
+  <text class="mono" x="28" y="382"><tspan class="path">    changex view report.changex --doc report.tracked.docx</tspan></text>
+</svg>
