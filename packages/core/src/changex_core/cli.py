@@ -266,14 +266,14 @@ _HELP_GROUPS = [
     (
         "Track & review",
         [
-            ("track", "apply ops to a doc (.docx/.xlsx/.csv/.pptx/.md/.doc) → tracked file + .changex"),
-            ("review", "render an HTML / markdown redline (--doc = inline in the doc's outline)"),
-            ("view", "serve an interactive localhost review page (accept / reject)"),
+            ("track", "apply scripted ops to a doc → tracked file + .changex"),
+            ("review", "render an HTML / markdown redline of the changes"),
+            ("view", "serve a localhost review page — accept / reject live"),
             ("verify", "check a .changex hash chain + baseline"),
         ],
     ),
     (
-        "Passive — any model, even offline",
+        "Passive  ·  any model, even offline",
         [
             ("open", "snapshot the baseline before anything edits the file"),
             ("seal", "diff the edited file → reconstruct the tracked changes"),
@@ -282,13 +282,13 @@ _HELP_GROUPS = [
     (
         "Connect to an app",
         [
-            ("connect", "wire ChangeX into Claude / ChatGPT / Cursor / Gemini / … (writes the config)"),
+            ("connect", "wire ChangeX into Claude / ChatGPT / Cursor / Gemini …"),
         ],
     ),
     (
         "Extras",
         [
-            ("shell", "interactive Python shell with changex_core preloaded"),
+            ("shell", "Python REPL with changex_core preloaded"),
             ("help", "show this command list"),
         ],
     ),
@@ -296,25 +296,28 @@ _HELP_GROUPS = [
 
 
 def cmd_help(args: argparse.Namespace | None = None) -> int:
-    """Show the banner + a grouped, human list of commands ('tasks')."""
+    """Show the banner + a grouped, human list of commands."""
     ui.print_banner()
     print(
-        "  " + ui.c("changex <command> [options]", "bold")
+        "  " + ui.c("changex", "bold") + " " + ui.c("<command> [options]", "dim")
         + ui.c("   ·   add -h to any command for details", "dim") + "\n"
     )
     for group, items in _HELP_GROUPS:
         print("  " + ui.c(group, "bold", "magenta"))
         for name, desc in items:
-            print("    " + ui.c(name.ljust(8), "cyan") + " " + desc)
+            print("    " + ui.c(name.ljust(9), "cyan", "bold") + desc)
         print()
-    print("  " + ui.c("Update", "bold", "magenta"))
-    print("    " + ui.c("pip / uv ", "cyan") + " pip install -U changex  ·  uv tool upgrade changex  ·  pipx upgrade changex")
-    print("    " + ui.c("agents   ", "cyan") + " pin the newest in Claude/Cursor/etc:  uvx changex-mcp@latest  (re-add the MCP server)")
-    print()
+    print("  " + ui.c("─" * 58, "dim"))
     print(
-        ui.c("  docs  ", "dim") + "https://github.com/ArioMoniri/changex/tree/main/docs"
-        + ui.c("   ·   ", "dim") + ui.c("changex shell", "cyan") + " to script it"
+        "  " + ui.c("New here?".ljust(9), "bold", "green") + "  "
+        + ui.c("changex connect <app>", "cyan")
+        + ui.c("   or   ", "dim") + ui.c("changex open file.docx", "cyan")
     )
+    print(
+        "  " + ui.c("Update".ljust(9), "bold") + "  uv tool upgrade changex"
+        + ui.c("   ·   ", "dim") + "pip install -U changex"
+    )
+    print("  " + ui.c("Docs".ljust(9), "bold") + "  github.com/ArioMoniri/changex/tree/main/docs")
     return 0
 
 
