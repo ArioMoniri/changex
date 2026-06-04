@@ -11,17 +11,26 @@ ChangeX captures **every edit an AI makes** to your Office files — `.docx` · 
 
 Works with **any model** 🤖 — Claude, ChatGPT, Gemini, or a local llama — and shows the changes as real Word track-changes 🖊️, a shareable HTML report 📄, or a live local web page 🌐.
 
+<p align="center">
+  <img src="docs/assets/review.png" alt="ChangeX — AI edits shown inline in the document's own outline, with who/when on hover" width="680">
+  <br><sub><em>Every AI edit shown inline in your document — hover any change for who &amp; when.</em></sub>
+</p>
+
 ---
 
 ## ⚡ Install
 
-[![Get it on PyPI](https://img.shields.io/badge/pip%20install-changex-3775A9?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/changex/)
+[![pip install changex](https://img.shields.io/badge/pip%20install-changex-3775A9?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/changex/)
+[![uv tool install](https://img.shields.io/badge/uv%20tool%20install-changex-261230?style=for-the-badge)](https://pypi.org/project/changex/)
+[![use from Claude](https://img.shields.io/badge/use%20from-Claude%20%26%20any%20model-D97757?style=for-the-badge)](docs/INTEGRATION.md)
 
 ```bash
-pip install changex          # or:  uv tool install changex   ·   pipx install changex
+uv tool install changex      # ✅ recommended — isolated, dodges PEP 668
+# or:  pipx install changex   ·   pip install changex   ·   zero-install:  uvx changex
 ```
 
-Don't want to install anything? Run it once: `uvx changex --help` 🚀
+🔄 **Update later:** `uv tool upgrade changex` · `pipx upgrade changex` · `pip install -U changex`
+&nbsp;(MCP via `uvx`? `uvx changex-mcp@latest` always grabs the newest.)
 
 ## 🤖 Use it from your AI
 
@@ -32,6 +41,8 @@ claude mcp add changex -- uvx changex-mcp
 ```
 
 Then just ask 💬 — *"Open report.docx with changex, tighten the intro and fix the heading, then save tracked changes."* The model edits **through** ChangeX, so every change is captured with full provenance. ✅
+
+> 🔐 **Reaching your local files:** this works in **desktop/local** clients — Claude **Desktop/Code**, Cursor, Cline — where `changex-mcp` runs *on your machine* and reads your local docs. A **browser** chat (claude.ai / ChatGPT web) can't see local files; use the desktop app, or the `open`/`seal` path below on a downloaded copy. **[Why & how →](docs/LOCAL-ACCESS.md)**
 
 **No tools? No problem** — works with offline/local models, or even a human:
 
@@ -72,10 +83,10 @@ A diff tells you *how two files differ*. ChangeX tells you **what the AI actuall
 
 ## 🗺️ Dig deeper
 
-📥 [Install](docs/INSTALL.md) · 🔌 [Integrations](docs/INTEGRATION.md) · 🏗️ [Architecture](docs/ARCHITECTURE.md) · 🛣️ [Roadmap](docs/ROADMAP.md) · 📐 [.changex format](docs/CHANGEX_FORMAT.md)
+📥 [Install](docs/INSTALL.md) · 🔌 [Integrations](docs/INTEGRATION.md) · 🔐 [Local file access](docs/LOCAL-ACCESS.md) · 🏗️ [Architecture](docs/ARCHITECTURE.md) · 🛣️ [Roadmap](docs/ROADMAP.md) · 📐 [.changex format](docs/CHANGEX_FORMAT.md)
 
 🎬 **Try all formats:** `python scripts/demo_all_formats.py` · 🐚 **Prefer code?** `changex shell` (Python with ChangeX preloaded)
 
 ## 📜 License
 
-[MIT](LICENSE) — © 2026 Ario Moniri.
+[MIT](LICENSE) — © 2026 Ariorad Moniri.

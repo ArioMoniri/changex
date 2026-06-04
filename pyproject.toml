@@ -36,7 +36,7 @@ description = "ChangeX: provenance-first change tracking for AI document edits. 
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [{ name = "ChangeX" }]
+authors = [{ name = "Ariorad Moniri" }]
 keywords = [
     "docx", "xlsx", "pptx", "csv", "track-changes", "provenance",
     "mcp", "ooxml", "event-sourcing", "ai", "llm",

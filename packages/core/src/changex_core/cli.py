@@ -256,6 +256,52 @@ def cmd_shell(args: argparse.Namespace) -> int:
     return 0
 
 
+_HELP_GROUPS = [
+    (
+        "Track & review",
+        [
+            ("track", "apply ops to a doc (.docx/.xlsx/.csv/.pptx) → tracked file + .changex"),
+            ("review", "render an HTML / markdown redline (--doc = inline in the doc's outline)"),
+            ("view", "serve an interactive localhost review page (accept / reject)"),
+            ("verify", "check a .changex hash chain + baseline"),
+        ],
+    ),
+    (
+        "Passive — any model, even offline",
+        [
+            ("open", "snapshot the baseline before anything edits the file"),
+            ("seal", "diff the edited file → reconstruct the tracked changes"),
+        ],
+    ),
+    (
+        "Extras",
+        [
+            ("shell", "interactive Python shell with changex_core preloaded"),
+            ("help", "show this command list"),
+        ],
+    ),
+]
+
+
+def cmd_help(args: argparse.Namespace | None = None) -> int:
+    """Show the banner + a grouped, human list of commands ('tasks')."""
+    ui.print_banner()
+    print(
+        "  " + ui.c("changex <command> [options]", "bold")
+        + ui.c("   ·   add -h to any command for details", "dim") + "\n"
+    )
+    for group, items in _HELP_GROUPS:
+        print("  " + ui.c(group, "bold", "magenta"))
+        for name, desc in items:
+            print("    " + ui.c(name.ljust(8), "cyan") + " " + desc)
+        print()
+    print(
+        ui.c("  docs  ", "dim") + "https://github.com/ArioMoniri/changex"
+        + ui.c("   ·   ", "dim") + ui.c("changex shell", "cyan") + " to script it"
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Construct the argparse CLI parser."""
     parser = argparse.ArgumentParser(prog="changex", description="ChangeX core CLI (M0 spine).")
@@ -323,6 +369,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     shell.set_defaults(func=cmd_shell)
 
+    help_p = sub.add_parser("help", help="show the grouped command list")
+    help_p.set_defaults(func=cmd_help)
+
     return parser
 
 
@@ -331,9 +380,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     argv_list = list(sys.argv[1:] if argv is None else argv)
     if not argv_list:
-        ui.print_banner()
-        parser.print_help()
-        return 0
+        return cmd_help()
     args = parser.parse_args(argv_list)
     return int(args.func(args))
 

@@ -9,7 +9,7 @@ description = "ChangeX MCP server: edit a .docx through an MCP client and get na
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [{ name = "ChangeX" }]
+authors = [{ name = "Ariorad Moniri" }]
 keywords = ["mcp", "docx", "track-changes", "provenance", "fastmcp"]
 classifiers = [
     "Programming Language :: Python :: 3.11",

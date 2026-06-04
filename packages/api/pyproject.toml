@@ -9,7 +9,7 @@ description = "ChangeX HTTP/REST API: a thin FastAPI wrapper over the changex-co
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [{ name = "ChangeX" }]
+authors = [{ name = "Ariorad Moniri" }]
 keywords = ["docx", "track-changes", "provenance", "fastapi", "openapi", "rest", "ai", "llm", "actions"]
 classifiers = [
     "Programming Language :: Python :: 3.11",

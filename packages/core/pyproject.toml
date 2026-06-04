@@ -9,7 +9,7 @@ description = "ChangeX core: canonical document model, append-only provenance jo
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [{ name = "ChangeX" }]
+authors = [{ name = "Ariorad Moniri" }]
 keywords = ["docx", "xlsx", "pptx", "csv", "track-changes", "provenance", "ooxml", "event-sourcing"]
 classifiers = [
     "Programming Language :: Python :: 3.11",
