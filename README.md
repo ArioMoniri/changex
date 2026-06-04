@@ -418,6 +418,28 @@ Installers attach to **[tagged releases](https://github.com/ArioMoniri/changex/r
 
 ## 🛟 Troubleshooting
 
+<details open>
+<summary><b>"can't open my file" / <code>Operation not permitted</code> (macOS) — even via Claude</b></summary>
+
+<br>
+
+This is **macOS privacy (TCC)**, not a changex bug: macOS blocks the *controlling app* (Claude
+Desktop, Terminal, iTerm, VS Code…) from `~/Downloads`, `~/Documents`, and `~/Desktop`. The
+`changex-mcp` server inherits that app's permission, so it's blocked exactly when the app is.
+
+Run **`changex doctor`** — it names the exact app to grant, shows which folders are blocked, and links you straight to the settings pane:
+
+```bash
+changex doctor                  # diagnose
+changex doctor --open-settings  # also open Full Disk Access
+```
+
+**Fix (one-time):** quit the app (⌘Q) → **System Settings → Privacy & Security → Full Disk Access** → turn **ON** that app (e.g. **Claude**) → reopen it. In the **ChangeX Viewer** app, the **Grant access** button opens this pane for you.
+
+**Or skip permissions entirely:** in **Claude Desktop, upload the document into the chat** and ask changex to edit it — the upload lands where changex can read it. Or move the file out of those protected folders.
+
+</details>
+
 <details>
 <summary><b>MCP server shows <code>✗ Failed to connect</code> (with <code>uvx</code> / <code>npx</code>)</b></summary>
 

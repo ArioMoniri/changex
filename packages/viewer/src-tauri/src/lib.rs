@@ -157,6 +157,24 @@ fn verify_journal(path: String) -> Result<CliResult, String> {
     run_changex(&["verify", &path])
 }
 
+/// Open the macOS **Full Disk Access** settings pane so the user can grant this app (and
+/// the changex sidecar it spawns) access to ~/Downloads/~/Documents/~/Desktop. macOS only.
+#[tauri::command]
+fn open_security_settings() -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| format!("could not open System Settings: {e}"))
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        Err("Full Disk Access settings are macOS-only.".into())
+    }
+}
+
 /// Tauri entry point wired from `main.rs`.
 pub fn run() {
     tauri::Builder::default()
@@ -167,6 +185,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             load_journal,
             render_review,
+            open_security_settings,
             verify_journal
         ])
         .run(tauri::generate_context!())

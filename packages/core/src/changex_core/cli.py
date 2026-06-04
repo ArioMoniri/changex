@@ -24,6 +24,7 @@ from changex_core import ui
 from changex_core.adapters import SUPPORTED_SUFFIXES, load_adapter
 from changex_core.adapters.docx_adapter import DEFAULT_AUTHOR
 from changex_core.connect import connect, target_names
+from changex_core.doctor import doctor
 from changex_core.journal.events import Header, Provenance, Target, utc_now_iso
 from changex_core.journal.journal import Journal
 from changex_core.ops.vocabulary import op_from_dict, target_node_id
@@ -275,6 +276,11 @@ def cmd_connect(args: argparse.Namespace) -> int:
     return connect(getattr(args, "target", None))
 
 
+def cmd_doctor(args: argparse.Namespace) -> int:
+    """Diagnose the install + macOS file-access (TCC) problems."""
+    return doctor(open_settings=getattr(args, "open_settings", False))
+
+
 _HELP_GROUPS = [
     (
         "Track & review",
@@ -296,6 +302,12 @@ _HELP_GROUPS = [
         "Connect to an app",
         [
             ("connect", "wire ChangeX into Claude / ChatGPT / Cursor / Gemini …"),
+        ],
+    ),
+    (
+        "Diagnose & fix",
+        [
+            ("doctor", "check the install + fix macOS file-access (Full Disk Access)"),
         ],
     ),
     (
@@ -424,6 +436,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="the app to set up (omit to list the options)",
     )
     connect_p.set_defaults(func=cmd_connect)
+
+    doctor_p = sub.add_parser(
+        "doctor", help="diagnose install + macOS file-access (Full Disk Access) problems"
+    )
+    doctor_p.add_argument(
+        "--open-settings",
+        action="store_true",
+        help="open the macOS Full Disk Access settings pane",
+    )
+    doctor_p.set_defaults(func=cmd_doctor)
 
     help_p = sub.add_parser("help", help="show the grouped command list")
     help_p.set_defaults(func=cmd_help)

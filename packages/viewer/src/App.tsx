@@ -68,6 +68,17 @@ export default function App() {
     setSelectedSeq(null);
   }, []);
 
+  // Open macOS Full Disk Access settings so the app (and the changex sidecar it spawns)
+  // can read files in ~/Downloads/~/Documents/~/Desktop.
+  const grantAccess = useCallback(async () => {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      await invoke("open_security_settings");
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
   const docName = useMemo(
     () => journal?.header?.doc?.filename ?? journal?.path ?? "—",
     [journal]
@@ -95,6 +106,11 @@ export default function App() {
             Load sample
           </button>
           {tauri && (
+            <button className="ghost" onClick={grantAccess} title="Open macOS Full Disk Access settings">
+              Grant access
+            </button>
+          )}
+          {tauri && (
             <button className="ghost" onClick={() => setShowUpdates(true)} title="Check for updates">
               Updates
             </button>
@@ -108,7 +124,19 @@ export default function App() {
           &nbsp;Use <strong>Load sample</strong>, or run via <code>npm run tauri:dev</code>.
         </div>
       )}
-      {error && <div className="banner error">{error}</div>}
+      {error && (
+        <div className="banner error">
+          {error}
+          {tauri && (
+            <>
+              {" "}
+              <button className="ghost" onClick={grantAccess}>
+                Grant file access
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {journal ? (
         <>
