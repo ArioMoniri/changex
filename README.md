@@ -403,11 +403,11 @@ ChangeX ships an optional **[Tauri](https://tauri.app)** desktop viewer — a sm
 **You usually don't need it.** `changex view` (zero-install local page) and the single-file HTML report already give the full accept/reject review on every platform. The desktop app just adds a native icon to double-click for non-technical reviewers; it doesn't add features.
 
 <p align="center">
-  <a href="https://github.com/ArioMoniri/changex/releases/latest"><img src="docs/assets/btn-mac.svg" height="44" alt="Download macOS .dmg"></a>
+  <a href="https://github.com/ArioMoniri/changex/releases/latest/download/ChangeX-Viewer-macos.dmg"><img src="docs/assets/btn-mac.svg" height="44" alt="Download macOS .dmg"></a>
   &nbsp;
-  <a href="https://github.com/ArioMoniri/changex/releases/latest"><img src="docs/assets/btn-win.svg" height="44" alt="Download Windows .msi"></a>
+  <a href="https://github.com/ArioMoniri/changex/releases/latest/download/ChangeX-Viewer-windows.msi"><img src="docs/assets/btn-win.svg" height="44" alt="Download Windows .msi"></a>
   &nbsp;
-  <a href="https://github.com/ArioMoniri/changex/releases/latest"><img src="docs/assets/btn-linux.svg" height="44" alt="Download Linux .AppImage"></a>
+  <a href="https://github.com/ArioMoniri/changex/releases/latest/download/ChangeX-Viewer-linux.AppImage"><img src="docs/assets/btn-linux.svg" height="44" alt="Download Linux .AppImage"></a>
 </p>
 
 Installers attach to **[tagged releases](https://github.com/ArioMoniri/changex/releases)**: macOS `.dmg` is **signed + notarized**; Windows `.msi` and Linux `.AppImage`/`.deb` are unsigned. Build/sign details: [docs/CI-AND-SECRETS.md](docs/CI-AND-SECRETS.md).
