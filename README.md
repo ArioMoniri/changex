@@ -70,6 +70,8 @@ That's it — every edit lands as a **real Word tracked change** you can accept/
 
 Confirm it worked: **`changex --version`**.
 
+> **Still on the old version after upgrading?** PyPI's install index can lag a release by a few minutes, so `pip` may grab the previous version (and leave a sub-package like `changex-core` behind). Force a clean upgrade of all of them — `pip install -U --no-cache-dir changex changex-core changex-mcp changex-api` — or just `uv tool upgrade changex`, which handles it cleanly.
+
 **2. The MCP server updates automatically.** Because `changex-mcp` is part of the package, step 1 upgrades it too. Your Claude registration is just a pointer to the `changex-mcp` binary, so **do *not* re-run `claude mcp add` to "update" it** — that doesn't update anything, it only creates duplicate entries. It picks up the new version next time it launches.
 
 > Registered the MCP as `uvx changex-mcp` (zero-install) instead of the binary? That form is pinned to a cached version — get the newest with `uvx changex-mcp@latest`, or switch to the installed binary (below).
