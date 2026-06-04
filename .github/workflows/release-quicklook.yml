@@ -1,6 +1,6 @@
 ## Builds the ChangeX Quick Look helper app (host app + .changex preview extension) and
-## attaches a .dmg to the release. Signs + notarizes when the Apple secrets are present
-## (same secrets as the Tauri desktop bundle); otherwise produces an UNSIGNED .dmg.
+## attaches a .dmg to the release. Signs (Developer ID) + notarizes when the Apple secrets
+## are present (same secrets as the Tauri desktop bundle); otherwise an UNSIGNED .dmg.
 ##
 ## Trigger: a v* tag (attaches to the release) or manual dispatch (build-only).
 
@@ -23,7 +23,7 @@ jobs:
       - name: Install xcodegen
         run: brew install xcodegen
 
-      - name: Build (signed if APPLE_SIGNING_IDENTITY is set)
+      - name: Build (Developer ID signed if the cert secret is present)
         working-directory: packages/quicklook
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -31,21 +31,28 @@ jobs:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
           set -euo pipefail
+          xcodegen generate
+          COMMON=(-project ChangeXQuickLook.xcodeproj -scheme ChangeXQuickLook -configuration Release SYMROOT=build)
           if [ -n "${APPLE_CERTIFICATE:-}" ]; then
-            KC="$RUNNER_TEMP/cx.keychain-db"; PW="$(uuidgen)"
-            security create-keychain -p "$PW" "$KC"
+            KC="$RUNNER_TEMP/cx.keychain-db"; KP="$(uuidgen)"
+            echo -n "$APPLE_CERTIFICATE" | base64 --decode -o "$RUNNER_TEMP/cert.p12"
+            security create-keychain -p "$KP" "$KC"
             security set-keychain-settings -lut 21600 "$KC"
-            security unlock-keychain -p "$PW" "$KC"
-            echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
-            security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-            security list-keychains -d user -s "$KC" $(security list-keychains -d user | sed s/\"//g)
-            security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$PW" "$KC" >/dev/null
-            SIGN_ID="$APPLE_SIGNING_IDENTITY" ./build.sh
+            security unlock-keychain -p "$KP" "$KC"
+            security import "$RUNNER_TEMP/cert.p12" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KC"
+            security set-key-partition-list -S apple-tool:,apple: -k "$KP" "$KC" >/dev/null
+            security list-keychain -d user -s "$KC" login.keychain-db
+            xcodebuild "${COMMON[@]}" \
+              CODE_SIGN_STYLE=Manual \
+              CODE_SIGN_IDENTITY="$APPLE_SIGNING_IDENTITY" \
+              OTHER_CODE_SIGN_FLAGS="--keychain $KC --timestamp" \
+              ENABLE_HARDENED_RUNTIME=YES \
+              build
           else
-            ./build.sh
+            xcodebuild "${COMMON[@]}" CODE_SIGNING_ALLOWED=NO build
           fi
 
-      - name: Notarize + staple (if APPLE_ID is set)
+      - name: Package .dmg (+ notarize & staple if APPLE_ID present)
         working-directory: packages/quicklook
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
