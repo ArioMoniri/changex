@@ -42,7 +42,7 @@ claude mcp add changex -- uvx changex-mcp
 
 Then just ask 💬 — *"Open report.docx with changex, tighten the intro and fix the heading, then save tracked changes."* The model edits **through** ChangeX, so every change is captured with full provenance. ✅
 
-> 🔐 **Reaching your local files:** this works in **desktop/local** clients — Claude **Desktop/Code**, Cursor, Cline — where `changex-mcp` runs *on your machine* and reads your local docs. A **browser** chat (claude.ai / ChatGPT web) can't see local files; use the desktop app, or the `open`/`seal` path below on a downloaded copy. **[Why & how →](docs/LOCAL-ACCESS.md)**
+> 🔐 **Reaching your local files:** this works in **desktop/local** clients — Claude **Desktop/Code**, Cursor, Cline — where `changex-mcp` runs *on your machine* and reads your local docs. A **browser** chat (claude.ai / ChatGPT web) can't see local files; use the desktop app, or the `open`/`seal` path below on a downloaded copy. **[Set it up → docs/CLAUDE-SETUP.md](docs/CLAUDE-SETUP.md)** · [why local-only](docs/LOCAL-ACCESS.md)
 
 **No tools? No problem** — works with offline/local models, or even a human:
 
@@ -83,7 +83,7 @@ A diff tells you *how two files differ*. ChangeX tells you **what the AI actuall
 
 ## 🗺️ Dig deeper
 
-📥 [Install](docs/INSTALL.md) · 🔌 [Integrations](docs/INTEGRATION.md) · 🔐 [Local file access](docs/LOCAL-ACCESS.md) · 🏗️ [Architecture](docs/ARCHITECTURE.md) · 🛣️ [Roadmap](docs/ROADMAP.md) · 📐 [.changex format](docs/CHANGEX_FORMAT.md)
+📥 [Install](docs/INSTALL.md) · 🛠️ [Claude setup](docs/CLAUDE-SETUP.md) · 🔌 [Integrations](docs/INTEGRATION.md) · 🔐 [Local file access](docs/LOCAL-ACCESS.md) · 🏗️ [Architecture](docs/ARCHITECTURE.md) · 📐 [.changex format](docs/CHANGEX_FORMAT.md)
 
 🎬 **Try all formats:** `python scripts/demo_all_formats.py` · 🐚 **Prefer code?** `changex shell` (Python with ChangeX preloaded)
 

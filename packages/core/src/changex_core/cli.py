@@ -295,8 +295,12 @@ def cmd_help(args: argparse.Namespace | None = None) -> int:
         for name, desc in items:
             print("    " + ui.c(name.ljust(8), "cyan") + " " + desc)
         print()
+    print("  " + ui.c("Update", "bold", "magenta"))
+    print("    " + ui.c("pip / uv ", "cyan") + " pip install -U changex  ·  uv tool upgrade changex  ·  pipx upgrade changex")
+    print("    " + ui.c("agents   ", "cyan") + " pin the newest in Claude/Cursor/etc:  uvx changex-mcp@latest  (re-add the MCP server)")
+    print()
     print(
-        ui.c("  docs  ", "dim") + "https://github.com/ArioMoniri/changex"
+        ui.c("  docs  ", "dim") + "https://github.com/ArioMoniri/changex/tree/main/docs"
         + ui.c("   ·   ", "dim") + ui.c("changex shell", "cyan") + " to script it"
     )
     return 0
@@ -305,6 +309,13 @@ def cmd_help(args: argparse.Namespace | None = None) -> int:
 def build_parser() -> argparse.ArgumentParser:
     """Construct the argparse CLI parser."""
     parser = argparse.ArgumentParser(prog="changex", description="ChangeX core CLI (M0 spine).")
+    try:
+        from importlib.metadata import version as _pkg_version
+
+        _v = _pkg_version("changex-core")
+    except Exception:  # pragma: no cover
+        _v = "unknown"
+    parser.add_argument("--version", action="version", version=f"changex {_v}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     track = sub.add_parser(

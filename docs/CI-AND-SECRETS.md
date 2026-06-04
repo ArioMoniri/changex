@@ -28,14 +28,48 @@ macOS Gatekeeper will warn). Add these repo secrets to get signed + notarized bu
 **Settings → Secrets and variables → Actions → New repository secret**:
 
 ### macOS notarization (Apple Developer Program, ~$99/yr required)
-| Secret | What it is / how to get it |
-|--------|----------------------------|
-| `APPLE_CERTIFICATE` | base64 of your **Developer ID Application** cert exported as `.p12`: `base64 -i cert.p12 \| pbcopy` |
+
+Quick reference:
+
+| Secret | What it is |
+|--------|------------|
+| `APPLE_CERTIFICATE` | base64 of your **Developer ID Application** cert as a `.p12` |
 | `APPLE_CERTIFICATE_PASSWORD` | the password you set when exporting the `.p12` |
-| `APPLE_SIGNING_IDENTITY` | e.g. `Developer ID Application: Your Name (TEAMID)` (from Keychain Access) |
+| `APPLE_SIGNING_IDENTITY` | e.g. `Developer ID Application: Ariorad Moniri (TEAMID)` |
 | `APPLE_ID` | your Apple Developer account email |
-| `APPLE_PASSWORD` | an **app-specific password** (appleid.apple.com → Sign-In and Security → App-Specific Passwords), *not* your login password |
-| `APPLE_TEAM_ID` | your 10-char Team ID (Apple Developer → Membership) |
+| `APPLE_PASSWORD` | an Apple **app-specific password** (not your login password) |
+| `APPLE_TEAM_ID` | your 10-char Team ID |
+
+**Step-by-step — how to get each (do these once):**
+
+1. **Join the Apple Developer Program** (~$99/yr): https://developer.apple.com/programs/ →
+   *Enroll*. You need this before any of the below exists.
+2. **`APPLE_TEAM_ID`** — https://developer.apple.com/account → **Membership details** →
+   copy the 10-character **Team ID** (e.g. `A1B2C3D4E5`).
+3. **Create the signing certificate** — in **Xcode** (easiest): *Settings → Accounts →*
+   select your team *→ Manage Certificates → +  → "Developer ID Application"*. (Or via the
+   web: developer.apple.com/account → *Certificates → + → Developer ID Application*, follow
+   the CSR steps.) It installs into **Keychain Access**.
+4. **`APPLE_SIGNING_IDENTITY`** — open **Keychain Access → My Certificates**, find
+   *"Developer ID Application: Your Name (TEAMID)"* and copy that full string.
+5. **Export the cert → `.p12`** — in Keychain Access, right-click that certificate →
+   **Export** → format **Personal Information Exchange (.p12)** → set a password. That
+   password **is `APPLE_CERTIFICATE_PASSWORD`**.
+6. **`APPLE_CERTIFICATE`** — base64-encode the `.p12` and copy it:
+   ```bash
+   base64 -i developer_id.p12 | pbcopy   # now paste into the GitHub secret
+   ```
+7. **`APPLE_ID`** — the email of your Apple Developer account.
+8. **`APPLE_PASSWORD`** — an **app-specific password** (the notary service needs this, not
+   your real password): https://account.apple.com → **Sign-In & Security → App-Specific
+   Passwords → +** → name it "changex notarize" → copy the `xxxx-xxxx-xxxx-xxxx` value.
+
+Then add each as **GitHub → repo → Settings → Secrets and variables → Actions → New
+repository secret** (exact names from the table). Run **Actions → Desktop bundle (Tauri) →
+Run workflow**, and it produces a signed, notarized `.dmg`.
+
+> Reminder: this is **optional** — only worth it if you want notarized installers for
+> non-technical users. `changex view` already gives the review UI with no install.
 
 ### Windows code signing (optional, needs a code-signing cert)
 | Secret | What it is |
