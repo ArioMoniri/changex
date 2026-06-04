@@ -38,18 +38,22 @@ from changex_core.adapters.base import (
 )
 from changex_core.adapters.docx_revisions import (
     WidAllocator,
+    build_run_props,
     make_deleted_pilcrow,
     make_deleted_run,
     make_inserted_pilcrow,
     make_inserted_run,
     make_ppr_change,
+    make_rpr_change,
 )
 from changex_core.journal.canonical import sha256_hex
 from changex_core.model.addressing import NodeIdAllocator
 from changex_core.model.nodes import Node, NodeKind
 from changex_core.ops.vocabulary import (
+    FormatRun,
     NodeDelete,
     NodeInsert,
+    NodeMove,
     Op,
     StyleChange,
     TextDelete,
@@ -84,6 +88,10 @@ class _Para:
     segments: list[_Segment] = field(default_factory=list)
     inserted: bool = False  # whole paragraph is a node.insert
     deleted: bool = False  # whole paragraph is a node.delete
+    # format.run state: the live run props + the prior props (for w:rPrChange).
+    format_changed: bool = False
+    format_props: dict = field(default_factory=dict)
+    format_before: dict = field(default_factory=dict)
 
     def current_text(self) -> str:
         """Text as it stands now (keep + ins segments; del removed)."""
@@ -222,6 +230,10 @@ class DocxAdapter(DocumentAdapter):
             self._apply_node_insert(op)
         elif isinstance(op, NodeDelete):
             self._apply_node_delete(op)
+        elif isinstance(op, FormatRun):
+            self._apply_format_run(op)
+        elif isinstance(op, NodeMove):
+            self._apply_node_move(op)
         else:  # pragma: no cover - exhaustive over the frozen set
             raise TypeError(f"unsupported op type {type(op).__name__}")
 
@@ -331,6 +343,65 @@ class DocxAdapter(DocumentAdapter):
             if seg.tag == "keep":
                 seg.tag = "del"
 
+    def _apply_format_run(self, op: FormatRun) -> None:
+        """Record a run-property change on a paragraph (guarding ``before``).
+
+        ``before`` must match the paragraph's *current* run props for every key
+        the op touches; on a previously-unformatted paragraph the implicit prior
+        value is "off"/absent (a falsy/missing entry). The change is stored and
+        materialized as a ``w:rPrChange`` at render time.
+        """
+        para = self._para(op.node_id)
+        # before-guard: the op's prior props must match the live props per key.
+        for key, prior in op.before.items():
+            current = para.format_props.get(key) if para.format_changed else None
+            current_norm = bool(current) if current is not None else False
+            if bool(prior) != current_norm:
+                raise BeforeMismatchError(
+                    f"format before {key!r}={prior!r} != current "
+                    f"{current_norm!r} for node {op.node_id!r}"
+                )
+        # Merge: new props take effect; the captured 'before' is the union of the
+        # op's declared prior values (so reject restores them).
+        merged_before = dict(para.format_before)
+        for key in op.props:
+            if key not in merged_before:
+                merged_before[key] = op.before.get(key, False)
+        para.format_props = {**para.format_props, **op.props}
+        para.format_before = merged_before
+        para.format_changed = True
+
+    def _apply_node_move(self, op: NodeMove) -> None:
+        """Move a paragraph via the del+ins surrogate.
+
+        The source paragraph is marked deleted (tracked ``w:del`` runs + a deleted
+        pilcrow) and a fresh *inserted* copy carrying the same text/style is placed
+        at ``to_index``. Accept-all therefore yields the paragraph at its new spot
+        and reject-all yields it at its original spot — a Word-acceptable move
+        that reuses proven insert/delete revision machinery.
+        """
+        source = self._para(op.node_id)
+        moved_text = source.baseline_text()
+        moved_style = source.style
+        # Mark the source as a tracked deletion.
+        source.deleted = True
+        for seg in source.segments:
+            if seg.tag == "keep":
+                seg.tag = "del"
+        # Materialize the inserted copy at the destination.
+        node_id = self._allocator.mint("p")
+        para_id = node_id.split(":", 1)[1].rjust(8, "0").upper()
+        moved = _Para(
+            node_id=node_id,
+            para_id=para_id,
+            style=moved_style,
+            base_style=moved_style,
+            inserted=True,
+            segments=[_Segment(moved_text, "ins")] if moved_text else [],
+        )
+        dest = max(0, min(op.to_index, len(self._paras)))
+        self._paras.insert(dest, moved)
+
     # -- render / save --------------------------------------------------------
 
     def render_tracked(self) -> bytes:
@@ -379,11 +450,31 @@ class DocxAdapter(DocumentAdapter):
             if not seg.text:
                 continue
             if seg.tag == "ins":
-                p_el.append(make_inserted_run(seg.text, self._author, self._date, alloc))
+                run = make_inserted_run(seg.text, self._author, self._date, alloc)
             elif seg.tag == "del":
-                p_el.append(make_deleted_run(seg.text, self._author, self._date, alloc))
+                run = make_deleted_run(seg.text, self._author, self._date, alloc)
             else:
-                p_el.append(self._plain_run(seg.text))
+                run = self._plain_run(seg.text)
+            if para.format_changed and seg.tag != "del":
+                self._apply_run_format(run, para, seg.tag, alloc)
+            p_el.append(run)
+
+    def _apply_run_format(self, run, para: _Para, tag: str, alloc: WidAllocator) -> None:  # type: ignore[no-untyped-def]
+        """Attach the live run props + a ``w:rPrChange`` to a rendered run.
+
+        ``run`` is either a bare ``w:r`` (keep) or a ``w:ins`` wrapper (ins); the
+        actual ``w:r`` to format is the wrapper's child for the inserted case. The
+        new props go in the run's ``w:rPr`` (created first so it precedes ``w:t``)
+        and the prior props are captured in a nested ``w:rPrChange``.
+        """
+        from docx.oxml.ns import qn as _qn
+
+        r_el = run if run.tag == _qn("w:r") else run.find(_qn("w:r"))
+        if r_el is None:
+            return
+        rpr = build_run_props(para.format_props)
+        rpr.append(make_rpr_change(para.format_before, self._author, self._date, alloc))
+        r_el.insert(0, rpr)
 
     def _ensure_ppr(self, p_el):  # type: ignore[no-untyped-def]
         ppr = p_el.find(qn("w:pPr"))

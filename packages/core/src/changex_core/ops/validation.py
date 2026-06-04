@@ -5,10 +5,10 @@ core importable with **zero external dependencies**, this module hand-rolls the
 subset of validation we actually need (required keys, allowed kinds, type
 checks, reserved-op rejection) rather than pulling in ``jsonschema`` at runtime.
 
-The accepted v0.2 set is the docx ops plus the un-reserved spreadsheet/slide ops
+The accepted v0.3 set is the docx text/structure ops, the docx run-format and
+paragraph-move ops (``format.run``, ``node.move``), and the spreadsheet/slide ops
 (``cell.set``, ``formula.set``, ``row.insert``, ``row.delete``, ``slide.insert``,
-``slide.delete``, ``shape.edit``). ``format.run`` and ``node.move`` remain the
-only reserved kinds and are still rejected.
+``slide.delete``, ``shape.edit``). No op kinds remain reserved.
 
 The JSON Schema remains the source of truth and is what downstream consumers /
 other languages validate against; this module is kept in lock-step with it.
@@ -37,6 +37,9 @@ _OP_REQUIRED: dict[str, set[str]] = {
     "node.insert": {"kind", "node_kind", "position", "value"},
     "node.delete": {"kind", "node_id", "value"},
     "style.change": {"kind", "node_id", "style", "before"},
+    # docx run-format + paragraph-move (v0.3)
+    "format.run": {"kind", "node_id", "props", "before"},
+    "node.move": {"kind", "node_id", "from_index", "to_index"},
     # xlsx / csv (v0.2)
     "cell.set": {"kind", "sheet", "ref", "before", "after"},
     "formula.set": {"kind", "sheet", "ref", "before", "after"},
@@ -102,6 +105,15 @@ def _check_op_types(kind: str, op: dict[str, Any]) -> None:
     elif kind == "node.delete":
         if not isinstance(op["value"], dict):
             raise SchemaValidationError("node.delete.value must be an object")
+    # --- docx run-format + paragraph-move (v0.3) -------------------------------
+    elif kind == "format.run":
+        if not isinstance(op["props"], dict):
+            raise SchemaValidationError("format.run.props must be an object")
+        if not isinstance(op["before"], dict):
+            raise SchemaValidationError("format.run.before must be an object")
+    elif kind == "node.move":
+        _check_int(op, "from_index", minimum=0)
+        _check_int(op, "to_index", minimum=0)
     # --- xlsx / csv (v0.2) -----------------------------------------------------
     elif kind in ("row.insert", "row.delete"):
         _check_int(op, "at")
@@ -121,7 +133,9 @@ def _check_op_types(kind: str, op: dict[str, Any]) -> None:
             raise SchemaValidationError("before_anchor must be a string or null")
     # String fields shared across ops (cell.set/formula.set add sheet/ref;
     # shape.edit adds shape_id). before/after stay strings for cell/formula ops.
-    for str_field in (
+    # ``format.run`` is exempt from the ``before`` string check: there ``before``
+    # is the prior run-property *object*, validated above.
+    str_fields = [
         "node_id",
         "text",
         "before",
@@ -131,7 +145,10 @@ def _check_op_types(kind: str, op: dict[str, Any]) -> None:
         "sheet",
         "ref",
         "shape_id",
-    ):
+    ]
+    if kind == "format.run":
+        str_fields.remove("before")
+    for str_field in str_fields:
         if str_field in op and not isinstance(op[str_field], str):
             raise SchemaValidationError(f"{kind}.{str_field} must be a string")
 

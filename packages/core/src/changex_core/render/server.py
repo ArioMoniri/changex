@@ -4,8 +4,13 @@
 ``127.0.0.1`` *only* (never a routable interface) and serves a single-page review
 app:
 
-* the HTML redline (reusing :func:`changex_core.render.html.render_html` over the
-  journal's live ``active_events``);
+* the HTML redline. When the server is started against a ``.docx`` document, the
+  redline pane shows the changes **inline in the document's own outline** (via
+  :func:`changex_core.render.document.render_document_html`, exactly like
+  ``changex review --doc``): a temp tracked ``.docx`` is regenerated from the
+  journal's active events onto the baseline, then rendered. With no doc (or a
+  non-``.docx`` doc) it falls back to the op-by-op log
+  (:func:`changex_core.render.html.render_html` over ``active_events``);
 * a provenance timeline of **every** op (including reverted ones), filterable by
   model/agent and by ``seq``;
 * per-change **accept / reject** controls. Reject calls
@@ -21,14 +26,19 @@ journal path is sanitized before the server is constructed).
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 from typing import Any, Optional
 
 from changex_core.journal.events import Event
 from changex_core.journal.journal import Journal, JournalError
+from changex_core.render.document import render_document_html
 from changex_core.render.html import render_html
+from changex_core.render.save import save_active
 
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
@@ -62,18 +72,92 @@ class ReviewState:
     The journal is the single source of truth; the server never caches a stale
     projection — every API call reads ``active_events`` / ``read`` fresh so a
     revert/accept is reflected immediately.
+
+    When ``doc_path`` names an existing ``.docx``, the redline pane renders the
+    **in-document outline** (changes shown inline in the document's own
+    structure) instead of the op-by-op log. Each render regenerates a temp
+    tracked ``.docx`` from the journal's *active* events onto the baseline (so a
+    revert/accept is reflected), then runs ``render_document_html`` over it.
     """
 
-    def __init__(self, journal: Journal) -> None:
+    def __init__(self, journal: Journal, *, doc_path: Optional[str] = None) -> None:
         self._journal = journal
         self._lock = threading.Lock()
+        # Only the in-document outline path needs a .docx; anything else (no doc,
+        # or a non-.docx doc) keeps the op-list redline.
+        self._doc_path: Optional[str] = (
+            doc_path if doc_path and doc_path.lower().endswith(".docx") else None
+        )
 
     @property
     def journal(self) -> Journal:
         return self._journal
 
+    @property
+    def in_document(self) -> bool:
+        """Whether the redline pane renders the in-document outline (docx mode)."""
+        return self._doc_path is not None
+
+    def _baseline_docx(self) -> Optional[str]:
+        """Resolve the baseline ``.docx`` to replay onto (header, then doc_path).
+
+        The header's ``baseline_uri`` is authoritative (it is what ``save_active``
+        replays onto). If it is missing/unreadable, fall back to the associated
+        ``doc_path`` itself as a best-effort baseline. Returns ``None`` if neither
+        resolves to a readable ``.docx``.
+        """
+        candidates = [
+            self._journal.header.doc.get("baseline_uri"),
+            self._doc_path,
+        ]
+        for candidate in candidates:
+            if not candidate:
+                continue
+            try:
+                p = Path(str(candidate))
+                if p.suffix.lower() == ".docx" and p.is_file():
+                    return str(p)
+            except OSError:
+                continue
+        return None
+
+    def _document_redline_html(self) -> Optional[str]:
+        """Render the in-document outline, or ``None`` to fall back to the op log.
+
+        Regenerates a temp tracked ``.docx`` via :func:`save_active` (active
+        events replayed onto the baseline) and renders its outline. Returns
+        ``None`` on any failure so the caller degrades to the op-list redline
+        rather than serving an error.
+        """
+        baseline = self._baseline_docx()
+        if baseline is None:
+            return None
+        tmp_path: Optional[str] = None
+        try:
+            fd, tmp_path = tempfile.mkstemp(suffix=".docx", prefix="changex-view-")
+            os.close(fd)
+            save_active(self._journal, baseline, tmp_path)
+            return render_document_html(
+                tmp_path,
+                title="ChangeX review",
+                events=self._journal.active_events(),
+            )
+        except Exception:  # noqa: BLE001 - degrade to op-list redline, never 500
+            return None
+        finally:
+            if tmp_path is not None:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+
     def redline_html(self) -> str:
         with self._lock:
+            if self._doc_path is not None:
+                document_html = self._document_redline_html()
+                if document_html is not None:
+                    return document_html
+            # No doc, non-.docx doc, or in-document render failed: op-by-op log.
             return render_html(self._journal.active_events(), title="ChangeX review")
 
     def events_json(self) -> dict[str, Any]:
@@ -103,9 +187,16 @@ class ReviewState:
         return self.events_json()
 
 
-def _page_html(title: str) -> str:
+def _page_html(title: str, *, in_document: bool = False) -> str:
     """The single-page review app (inline CSS + JS; no external resources)."""
-    return _PAGE_TEMPLATE.replace("__TITLE__", title)
+    redline_heading = (
+        "Document outline (live; changes shown inline)"
+        if in_document
+        else "Redline (live, from active events)"
+    )
+    return _PAGE_TEMPLATE.replace("__TITLE__", title).replace(
+        "__REDLINE_HEADING__", redline_heading
+    )
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -135,7 +226,9 @@ class _Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802 - http.server contract
         path = self.path.split("?", 1)[0]
         if path == "/":
-            self._send_html(_page_html(self.page_title))
+            self._send_html(
+                _page_html(self.page_title, in_document=self.state.in_document)
+            )
         elif path == "/api/events":
             self._send_json(self.state.events_json())
         elif path == "/api/redline":
@@ -170,15 +263,22 @@ class _Handler(BaseHTTPRequestHandler):
 
 
 def build_server(
-    journal: Journal, *, port: int = DEFAULT_PORT, title: str = "ChangeX review"
+    journal: Journal,
+    *,
+    port: int = DEFAULT_PORT,
+    title: str = "ChangeX review",
+    doc_path: Optional[str] = None,
 ) -> HTTPServer:
     """Build (but do not start) a localhost-only review server for ``journal``.
 
     Binds to ``127.0.0.1`` with the given ``port`` (``0`` picks an ephemeral
     free port — used by the smoke test). Returns the :class:`HTTPServer`; the
     caller is responsible for ``serve_forever`` / ``shutdown``.
+
+    When ``doc_path`` names an existing ``.docx``, the redline pane renders the
+    in-document outline; otherwise it shows the op-by-op log.
     """
-    state = ReviewState(journal)
+    state = ReviewState(journal, doc_path=doc_path)
 
     handler = type(
         "_BoundReviewHandler",
@@ -197,18 +297,18 @@ def serve(
 ) -> None:
     """Open ``changex_path`` and serve the review UI until interrupted.
 
-    ``doc_path`` is accepted for parity with the CLI (so the URL/title can name
-    the document) but the redline is always projected from the journal, never the
-    tracked docx. Prints the localhost URL and (unless ``open_browser`` is
-    ``False``) auto-opens the default browser. Blocks on ``serve_forever``.
+    When ``doc_path`` names an existing ``.docx``, the redline pane shows the
+    changes inline in the document's own outline (regenerated per-render from the
+    journal's active events, so accept/reject re-renders live). With no doc or a
+    non-``.docx`` doc, the redline keeps the op-by-op log behavior. Prints the
+    localhost URL and (unless ``open_browser`` is ``False``) auto-opens the
+    default browser. Blocks on ``serve_forever``.
     """
     journal = Journal.open(changex_path)
     title = "ChangeX review"
     if doc_path:
-        from pathlib import Path
-
         title = f"ChangeX review — {Path(doc_path).name}"
-    server = build_server(journal, port=port, title=title)
+    server = build_server(journal, port=port, title=title, doc_path=doc_path)
     actual_port = server.server_address[1]
     url = f"http://{HOST}:{actual_port}/"
     print(f"changex view serving at {url}")
@@ -277,7 +377,7 @@ _PAGE_TEMPLATE = """<!doctype html>
 </header>
 <div class="wrap">
   <section>
-    <h2>Redline (live, from active events)</h2>
+    <h2>__REDLINE_HEADING__</h2>
     <div class="pad" id="redline">loading…</div>
   </section>
   <section>

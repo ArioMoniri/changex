@@ -60,9 +60,11 @@ from changex_core.model.nodes import Node, NodeKind
 from changex_core.ops.vocabulary import (
     OP_SCHEMA_VERSION,
     CellSet,
+    FormatRun,
     FormulaSet,
     NodeDelete,
     NodeInsert,
+    NodeMove,
     Op,
     ReservedOpError,
     RowDelete,
@@ -116,6 +118,8 @@ __all__ = [
     "NodeInsert",
     "NodeDelete",
     "StyleChange",
+    "FormatRun",
+    "NodeMove",
     # ops (xlsx/csv + pptx, v0.2)
     "CellSet",
     "FormulaSet",

@@ -4,8 +4,8 @@ This is the renderer half of the docx adapter. It is intentionally separate from
 model bookkeeping so the *exact* OOXML markup is auditable in one place (the spec
 in ``docs/OOXML_REVISION_MAPPING.md`` mirrors this file).
 
-Mapping (v0.1)
---------------
+Mapping (v0.1 + v0.3)
+---------------------
 =================  ====================================================
 op                 OOXML revision markup
 =================  ====================================================
@@ -17,6 +17,17 @@ node.insert(para)  new ``w:p`` whose runs are wrapped in ``w:ins`` and whose
                    paragraph mark carries an *inserted* pilcrow revision
                    (``w:rPr/w:ins`` inside ``w:pPr``)
 node.delete(para)  runs wrapped in ``w:del`` + a *deleted* pilcrow revision
+format.run         live run ``w:rPr`` carrying the new props + a nested
+                   ``w:rPrChange`` capturing the prior props (run-property
+                   revision: accept keeps new, reject restores old)
+node.move(para)    rendered as the del+ins surrogate — the source paragraph is a
+                   ``node.delete`` (runs in ``w:del`` + deleted pilcrow) and a
+                   fresh inserted paragraph (``w:ins`` runs + inserted pilcrow)
+                   is materialized at the destination. (A faithful native
+                   ``w:moveFrom``/``w:moveTo`` is intentionally NOT used: its
+                   paired range-bookmark markup is fragile and Word rejects
+                   unbalanced ranges; the del+ins pair reuses proven, cleanly
+                   resolvable revision machinery.)
 =================  ====================================================
 
 Every ``w:ins``/``w:del``/``w:pPrChange``/pilcrow-revision element needs a unique
@@ -128,6 +139,57 @@ def make_ppr_change(
     return ppr_change
 
 
+# Run properties this adapter knows how to render as OOXML toggle elements.
+# Each maps a JSON-friendly prop key to its ``w:*`` boolean toggle tag. A truthy
+# value emits ``<w:tag/>``; a falsy value emits ``<w:tag w:val="false"/>`` (an
+# explicit off-toggle, which is what lets reject restore "was-not-bold").
+_RUN_TOGGLE_TAGS: dict[str, str] = {
+    "bold": "w:b",
+    "italic": "w:i",
+    "underline": "w:u",
+}
+
+
+def build_run_props(props: dict[str, object]) -> etree._Element:
+    """Build a ``<w:rPr>`` element from a ``format.run`` props dict.
+
+    Only the recognised toggle props (:data:`_RUN_TOGGLE_TAGS`) are rendered;
+    unknown keys are ignored so an over-eager payload can't inject arbitrary
+    markup. ``underline`` uses ``w:val`` (``single``/``none``) per the schema;
+    the bold/italic toggles use the boolean ``w:val="false"`` off-form.
+    """
+    rpr = _el("w:rPr")
+    for key, raw in props.items():
+        tag = _RUN_TOGGLE_TAGS.get(key)
+        if tag is None:
+            continue
+        el = etree.SubElement(rpr, qn(tag))
+        on = bool(raw)
+        if key == "underline":
+            el.set(qn("w:val"), "single" if on else "none")
+        elif not on:
+            el.set(qn("w:val"), "false")
+    return rpr
+
+
+def make_rpr_change(
+    before: dict[str, object], author: str, date: str, alloc: WidAllocator
+) -> etree._Element:
+    """Return a ``<w:rPrChange>`` capturing the *previous* run properties.
+
+    Placed inside the run's ``<w:rPr>`` (after the new live props). The nested
+    ``<w:rPr>`` holds the prior run properties (``before``) so accept keeps the
+    new props and reject restores the old ones — the run-level analogue of
+    :func:`make_ppr_change`.
+    """
+    rpr_change = _el("w:rPrChange")
+    rpr_change.set(qn("w:id"), str(alloc.next_id()))
+    rpr_change.set(qn("w:author"), author)
+    rpr_change.set(qn("w:date"), date)
+    rpr_change.append(build_run_props(before))
+    return rpr_change
+
+
 def make_inserted_pilcrow(
     author: str, date: str, alloc: WidAllocator
 ) -> etree._Element:
@@ -166,6 +228,7 @@ def collect_wids(root: etree._Element) -> list[int]:
             qn("w:ins"),
             qn("w:del"),
             qn("w:pPrChange"),
+            qn("w:rPrChange"),
         ):
             try:
                 ids.append(int(val))

@@ -260,7 +260,7 @@ _HELP_GROUPS = [
     (
         "Track & review",
         [
-            ("track", "apply ops to a doc (.docx/.xlsx/.csv/.pptx) → tracked file + .changex"),
+            ("track", "apply ops to a doc (.docx/.xlsx/.csv/.pptx/.md/.doc) → tracked file + .changex"),
             ("review", "render an HTML / markdown redline (--doc = inline in the doc's outline)"),
             ("view", "serve an interactive localhost review page (accept / reject)"),
             ("verify", "check a .changex hash chain + baseline"),
@@ -320,9 +320,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     track = sub.add_parser(
         "track",
-        help="apply ops to a document (.docx/.xlsx/.csv/.pptx), emit tracked doc + .changex",
+        help="apply ops to a document (.docx/.xlsx/.csv/.pptx/.md/.doc), emit tracked doc + .changex",
     )
-    track.add_argument("docx", help="input document (.docx/.xlsx/.csv/.pptx)")
+    track.add_argument("docx", help="input document (.docx/.xlsx/.csv/.pptx/.md/.doc)")
     track.add_argument("ops", help="JSON file: list of op dicts")
     track.add_argument("--out", required=True, help="output tracked document (same extension as input)")
     track.add_argument("--changex", required=True, help="output .changex journal")
@@ -333,7 +333,7 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("changex", help=".changex journal")
     verify.add_argument(
         "--baseline",
-        help="baseline document (.docx/.xlsx/.csv/.pptx) to re-hash against header baseline_sha256",
+        help="baseline document (.docx/.xlsx/.csv/.pptx/.md/.doc) to re-hash against header baseline_sha256",
     )
     verify.set_defaults(func=cmd_verify)
 
@@ -351,7 +351,7 @@ def build_parser() -> argparse.ArgumentParser:
     view = sub.add_parser("view", help="serve an interactive localhost review UI")
     view.add_argument("changex", help=".changex journal")
     view.add_argument(
-        "--doc", help="associated tracked document (.docx/.xlsx/.csv/.pptx) for the page title"
+        "--doc", help="associated tracked document (.docx/.xlsx/.csv/.pptx/.md/.doc) for the page title"
     )
     view.add_argument(
         "--port", type=int, default=DEFAULT_PORT, help="localhost port (default 8765)"

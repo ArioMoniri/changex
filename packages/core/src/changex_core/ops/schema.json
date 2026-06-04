@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://changex.dev/schema/0.2/changex.json",
-  "title": "ChangeX v0.2 journal schema",
-  "description": "Schemas for the .changex header, op events, and the frozen v0.2 op set (docx text/structure ops plus the un-reserved xlsx/csv cell+row ops and pptx slide+shape ops). Only format.run and node.move remain reserved and are rejected by validation.",
+  "$id": "https://changex.dev/schema/0.3/changex.json",
+  "title": "ChangeX v0.3 journal schema",
+  "description": "Schemas for the .changex header, op events, and the frozen v0.3 op set (docx text/structure ops, the docx run-format + paragraph-move ops, the xlsx/csv cell+row ops and pptx slide+shape ops). No op kinds remain reserved as of v0.3.",
   "definitions": {
     "provenance": {
       "type": "object",
@@ -96,6 +96,28 @@
       },
       "additionalProperties": false
     },
+    "op_format_run": {
+      "type": "object",
+      "required": ["kind", "node_id", "props", "before"],
+      "properties": {
+        "kind": { "const": "format.run" },
+        "node_id": { "type": "string" },
+        "props": { "type": "object" },
+        "before": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "op_node_move": {
+      "type": "object",
+      "required": ["kind", "node_id", "from_index", "to_index"],
+      "properties": {
+        "kind": { "const": "node.move" },
+        "node_id": { "type": "string" },
+        "from_index": { "type": "integer", "minimum": 0 },
+        "to_index": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
     "op_cell_set": {
       "type": "object",
       "required": ["kind", "sheet", "ref", "before", "after"],
@@ -180,6 +202,8 @@
         { "$ref": "#/definitions/op_node_insert" },
         { "$ref": "#/definitions/op_node_delete" },
         { "$ref": "#/definitions/op_style_change" },
+        { "$ref": "#/definitions/op_format_run" },
+        { "$ref": "#/definitions/op_node_move" },
         { "$ref": "#/definitions/op_cell_set" },
         { "$ref": "#/definitions/op_formula_set" },
         { "$ref": "#/definitions/op_row_insert" },
@@ -238,9 +262,7 @@
     }
   },
   "x-reserved-ops-appendix": {
-    "description": "Reserved op kinds, NOT yet implemented; validation rejects them. The xlsx/csv/pptx ops that were reserved in v0.1 are now part of the frozen v0.2 op set above.",
-    "kinds": [
-      "format.run", "node.move"
-    ]
+    "description": "No op kinds remain reserved as of v0.3. The docx run-format (format.run) and paragraph-move (node.move) ops — the last reserved kinds in v0.2 — are now part of the frozen op set above, alongside the xlsx/csv/pptx ops un-reserved in v0.2.",
+    "kinds": []
   }
 }

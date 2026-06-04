@@ -7,7 +7,7 @@
 [![CI](https://github.com/ArioMoniri/changex/actions/workflows/ci.yml/badge.svg)](https://github.com/ArioMoniri/changex/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-ChangeX captures **every edit an AI makes** to your Office files — `.docx` · `.xlsx` · `.csv` · `.pptx` — *as it happens*, with **who / what / when / why**. It's not a diff after the fact — it's a live, attributable record you can review and accept or reject. 🎯
+ChangeX captures **every edit an AI makes** to your documents — `.docx` · `.xlsx` · `.csv` · `.pptx` · `.md` · `.doc` — *as it happens*, with **who / what / when / why**. It's not a diff after the fact — it's a live, attributable record you can review and accept or reject. 🎯
 
 Works with **any model** 🤖 — Claude, ChatGPT, Gemini, or a local llama — and shows the changes as real Word track-changes 🖊️, a shareable HTML report 📄, or a live local web page 🌐.
 
@@ -74,6 +74,8 @@ changex view   report.changex --doc report.tracked.docx                     # �
 | 📄 `.docx` | **Native Word track changes** — accept/reject right in Word |
 | 📊 `.xlsx` / `.csv` | Non-destructive review copy — colored cells, comments, a `Changes` sheet (your original stays untouched) |
 | 📽️ `.pptx` | Revision overlay + a generated "Revisions" summary slide |
+| 📝 `.md` | Inline HTML redline (Markdown has no native track-changes) |
+| 🗂️ `.doc` (legacy) | Auto-converted to `.docx` (LibreOffice), then native Word revisions |
 
 Every format also writes a portable **`.changex`** journal — a hash-chained log of each operation with its provenance. Honest per-format limits: [docs/FIDELITY.md](docs/FIDELITY.md). ⚖️
 

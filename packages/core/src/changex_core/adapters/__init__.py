@@ -47,11 +47,15 @@ _REGISTRY: dict[str, str] = {
     ".xlsx": "changex_core.adapters.xlsx_adapter:XlsxAdapter",
     ".csv": "changex_core.adapters.csv_adapter:CsvAdapter",
     ".pptx": "changex_core.adapters.pptx_adapter:PptxAdapter",
+    ".md": "changex_core.adapters.md_adapter:MdAdapter",
 }
 
 # The suffixes ``load_adapter`` will accept (used as the ``allow_suffixes`` guard
 # at the path boundary so an unknown extension is rejected before any import).
-SUPPORTED_SUFFIXES: tuple[str, ...] = tuple(_REGISTRY)
+# ``.doc`` (legacy Word) has no adapter of its own — ``load_adapter`` converts it to
+# ``.docx`` via LibreOffice and hands it to :class:`DocxAdapter`, so it is an accepted
+# *input* suffix but NOT a registry key.
+SUPPORTED_SUFFIXES: tuple[str, ...] = tuple(_REGISTRY) + (".doc",)
 
 
 def supported_suffixes() -> tuple[str, ...]:
@@ -133,6 +137,17 @@ def load_adapter(path: str, **kwargs: object) -> DocumentAdapter:
         UnsafePathError: if the path fails sanitization or does not exist.
     """
     resolved = safe_path(path, must_exist=True, allow_suffixes=SUPPORTED_SUFFIXES)
+
+    # Legacy .doc: convert to .docx in a temp dir (LibreOffice), then load as docx.
+    if resolved.suffix.lower() == ".doc":
+        import tempfile
+
+        from changex_core.adapters.doc_convert import convert_doc_to_docx
+
+        tmp_dir = tempfile.mkdtemp(prefix="changex-doc-ingest-")
+        docx_path = convert_doc_to_docx(str(resolved), out_dir=tmp_dir)
+        return DocxAdapter.load(docx_path, **kwargs)  # type: ignore[arg-type]
+
     cls = adapter_class_for(str(resolved))
     loader: Callable[..., DocumentAdapter] = cls.load  # type: ignore[assignment]
     return loader(str(resolved), **kwargs)

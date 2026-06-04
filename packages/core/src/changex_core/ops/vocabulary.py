@@ -17,18 +17,22 @@ Design rules baked in here:
 * ``node_kind`` (not ``kind_of``) names the target structural type — resolving
   the historic ``kind`` / ``kind_of`` overload.
 
-Frozen v0.2 op set (the kinds validation accepts and adapters implement):
+Frozen v0.3 op set (the kinds validation accepts and adapters implement):
 
 docx (unchanged from v0.1)
     ``text.insert``, ``text.delete``, ``text.replace``, ``node.insert``,
     ``node.delete``, ``style.change``.
+docx (newly un-reserved in v0.3)
+    ``format.run`` (run-property revision, ``w:rPrChange``), ``node.move``
+    (paragraph move, rendered as a tracked delete at source + tracked insert at
+    destination).
 xlsx / csv
     ``cell.set``, ``formula.set``, ``row.insert``, ``row.delete``.
 pptx
     ``slide.insert``, ``slide.delete``, ``shape.edit``.
 
-Still RESERVED (rejected at parse time): ``format.run`` and ``node.move``.
-Constructing a reserved kind from this set raises :class:`ReservedOpError`.
+No kinds remain RESERVED as of v0.3 — :data:`_RESERVED_KINDS` is now empty.
+Constructing an unknown kind from this set raises :class:`UnknownOpError`.
 """
 
 from __future__ import annotations
@@ -36,15 +40,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, ClassVar, Union
 
-OP_SCHEMA_VERSION = "0.2"
+OP_SCHEMA_VERSION = "0.3"
 
-# Kinds that remain reserved but not implemented in v0.2; rejected at parse time.
-_RESERVED_KINDS = frozenset(
-    {
-        "format.run",
-        "node.move",
-    }
-)
+# No kinds remain reserved-but-unimplemented as of v0.3: ``format.run`` and
+# ``node.move`` are now first-class docx ops. The empty frozenset (and the
+# ``ReservedOpError`` it backs) is kept so callers that branch on reserved-op
+# rejection keep compiling — the set is simply never hit.
+_RESERVED_KINDS: frozenset[str] = frozenset()
 
 
 class ReservedOpError(ValueError):
@@ -171,6 +173,86 @@ class StyleChange:
             "style": self.style,
             "before": self.before,
         }
+
+
+# --------------------------------------------------------------------------- #
+# v0.3 docx ops (newly un-reserved). ``format.run`` is a run-property revision;
+# ``node.move`` relocates a whole paragraph. Both address by ``node_id`` like the
+# other docx ops and carry the ``before`` they need to reject/replay file-free.
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True)
+class FormatRun:
+    """Apply run-level formatting (``props``) to a node, recording prior ``before``.
+
+    ``props`` is the desired run-property map (e.g. ``{"bold": True}``) and
+    ``before`` the prior values for those same keys (e.g. ``{"bold": False}``) so
+    the change can be rejected/replayed without the original file. Rendered as a
+    native ``w:rPrChange`` run-property revision: ``props`` become the run's live
+    ``w:rPr`` while ``before`` is captured inside the ``w:rPrChange`` — accept
+    keeps the new props, reject restores the old ones.
+    """
+
+    node_id: str
+    props: dict[str, Any]
+    before: dict[str, Any]
+    kind: ClassVar[str] = "format.run"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "kind": self.kind,
+            "node_id": self.node_id,
+            "props": dict(self.props),
+            "before": dict(self.before),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "FormatRun":
+        return cls(
+            node_id=str(data["node_id"]),
+            props=dict(data["props"]),
+            before=dict(data["before"]),
+        )
+
+    def target_node_id(self) -> str:
+        return self.node_id
+
+
+@dataclass(frozen=True)
+class NodeMove:
+    """Move the node at ``from_index`` to ``to_index`` (both 0-based positions).
+
+    Indices are positions in the document's paragraph list. The pair is captured
+    so the move can be rejected/replayed without the original file. Rendered as a
+    tracked DELETE of the paragraph at the source plus a tracked INSERT at the
+    destination (a Word-acceptable move surrogate that resolves cleanly under
+    accept-all / reject-all), addressed by the source paragraph's ``node_id``.
+    """
+
+    node_id: str
+    from_index: int
+    to_index: int
+    kind: ClassVar[str] = "node.move"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "kind": self.kind,
+            "node_id": self.node_id,
+            "from_index": self.from_index,
+            "to_index": self.to_index,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "NodeMove":
+        return cls(
+            node_id=str(data["node_id"]),
+            from_index=int(data["from_index"]),
+            to_index=int(data["to_index"]),
+        )
+
+    def target_node_id(self) -> str:
+        return self.node_id
 
 
 # --------------------------------------------------------------------------- #
@@ -414,6 +496,8 @@ Op = Union[
     NodeInsert,
     NodeDelete,
     StyleChange,
+    FormatRun,
+    NodeMove,
     CellSet,
     FormulaSet,
     RowInsert,
@@ -430,6 +514,8 @@ _BY_KIND: dict[str, type] = {
     NodeInsert.kind: NodeInsert,
     NodeDelete.kind: NodeDelete,
     StyleChange.kind: StyleChange,
+    FormatRun.kind: FormatRun,
+    NodeMove.kind: NodeMove,
     CellSet.kind: CellSet,
     FormulaSet.kind: FormulaSet,
     RowInsert.kind: RowInsert,
@@ -439,10 +525,11 @@ _BY_KIND: dict[str, type] = {
     ShapeEdit.kind: ShapeEdit,
 }
 
-# Kept named ``V01_KINDS`` for source compatibility; now the full v0.2 accepted
-# set (every non-reserved kind validation/from_dict will construct).
+# Kept named ``V01_KINDS`` for source compatibility; now the full v0.3 accepted
+# set (every kind validation/from_dict will construct — nothing is reserved).
 V01_KINDS = frozenset(_BY_KIND.keys())
 V02_KINDS = V01_KINDS
+V03_KINDS = V01_KINDS
 
 
 def op_to_dict(op: Op) -> dict[str, Any]:
