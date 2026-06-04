@@ -74,6 +74,9 @@ jobs:
       - name: Build (and sign/notarize if secrets are present)
         uses: tauri-apps/tauri-action@v0
         env:
+          # Required for tauri-action to upload the built bundles to the GitHub release
+          # (a tag/release run sets tagName; without this the upload fails: "GITHUB_TOKEN is required").
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # --- macOS signing + notarization (used only if APPLE_CERTIFICATE is set) ---
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
