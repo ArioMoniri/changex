@@ -41,7 +41,8 @@ A diff tells you <i>how two files differ</i>; ChangeX tells you <b>what the AI a
 # 1) install the tool
 uv tool install changex                      # or: pipx install changex · pip install changex
 
-# 2) connect it to your AI — ONCE, works in every project (see "Updating" to avoid duplicates)
+# 2) connect it to Claude CODE (terminal / IDE) — once; works in every folder, no duplicates
+#    chatting in the Claude DESKTOP app instead? that's a SEPARATE config → docs/CLAUDE-SETUP.md
 claude mcp add -s user changex -- changex-mcp
 
 # 3) ask your assistant, e.g.:
@@ -109,7 +110,13 @@ With the MCP server connected (Quickstart step 2), just ask in plain language. T
 
 > *"Use changex to open `~/Documents/Q3-report.docx`. Tighten the executive summary, fix the heading levels, and replace the passive voice in section 2 — make every change a **tracked revision** authored by you, save it, then show me a review of what changed."*
 
-🔐 **Local files:** this works in **desktop/local** clients where `changex-mcp` runs *on your machine*. A **browser** chat (claude.ai / ChatGPT web) can't see local files — use a desktop app, or Path B on a downloaded copy. [Why →](docs/LOCAL-ACCESS.md) · [Claude setup →](docs/CLAUDE-SETUP.md) · [Other apps →](docs/CALL-FROM-YOUR-APP.md)
+⚠️ **Each Claude app is set up separately — this trips everyone up:**
+
+- **Claude Code** (terminal / IDE) — `claude mcp add -s user changex -- changex-mcp` (Quickstart step 2). This is the *only* thing `claude mcp list ✓ Connected` reflects.
+- **Claude Desktop app** — has its **own** config; `claude mcp add` does **not** touch it. Add changex there (absolute path) and **fully restart the app** → [docs/CLAUDE-SETUP.md §B](docs/CLAUDE-SETUP.md).
+- **claude.ai / ChatGPT in a browser** — can't read local files *at all*; use a desktop app, or Path B on a downloaded copy.
+
+So if `claude mcp list` says `✓ Connected` but a chat says *"I can't find changex / upload the file,"* you're talking to a **different Claude than the one you configured** — set it up for that app too. [Why local-only →](docs/LOCAL-ACCESS.md) · [Other apps →](docs/CALL-FROM-YOUR-APP.md)
 
 </details>
 

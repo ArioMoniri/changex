@@ -5,9 +5,13 @@ If you asked Claude *"open /Users/you/Report.docx with changex…"* and it repli
 isn't connected yet**, so Claude has no `changex` tools and no way to touch local files.
 Once it's connected, the local server reads/writes your files and Claude just drives it.
 
-> ⚠️ This works in **Claude Desktop** and **Claude Code** (they run the server *on your
-> Mac*). It does **not** work in **claude.ai in a browser** — a web tab can't see local
-> files at all. See [LOCAL-ACCESS.md](LOCAL-ACCESS.md).
+> ⚠️ **Each app is configured separately.** `claude mcp add` sets up **Claude Code** (the
+> terminal/IDE) *only* — it does **not** touch the **Claude Desktop app**, which keeps its own
+> config file (Section B). So `claude mcp list` showing `✓ Connected` means *only Claude Code*
+> has changex; the **Desktop app won't** until you do Section B and fully restart it. (This is the
+> #1 gotcha: people run the Code command, then chat in the Desktop app and wonder why there's no
+> changex.) Both run the server *on your Mac* and read local files. **claude.ai in a browser can't** —
+> a web tab never sees local files. See [LOCAL-ACCESS.md](LOCAL-ACCESS.md).
 
 ---
 
@@ -32,8 +36,8 @@ changex-mcp        # no output + no error = good. Ctrl-C to exit.
 ## A. Claude Code (terminal `claude`) — easiest
 
 ```bash
-claude mcp add changex -- changex-mcp
-claude mcp list                 # should show: changex  ✓ connected
+claude mcp add -s user changex -- changex-mcp   # -s user → available in every folder, never duplicates
+claude mcp list                                 # should show: changex  ✓ Connected
 ```
 
 Then in a session:
