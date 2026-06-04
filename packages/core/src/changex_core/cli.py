@@ -203,11 +203,12 @@ def cmd_open(args: argparse.Namespace) -> int:
 
 def cmd_seal(args: argparse.Namespace) -> int:
     """Passive seal: diff current docx vs baseline and append reconstructed ops."""
-    result = seal_passive(args.docx, args.changex)
+    result = seal_passive(args.docx, args.changex, clean=args.clean)
     print(ui.ok("passive seal complete") + ui.c("  (DEGRADED provenance — reconstructed by diff)", "dim"))
-    print(ui.field(".changex", result.changex_path))
     if result.baseline_unchanged:
         print("  no changes detected vs baseline; nothing appended.")
+        if result.baseline_removed:
+            print(ui.c("  cleaned up the baseline snapshot.", "dim"))
         return 0
     print(
         ui.field(
@@ -221,15 +222,27 @@ def cmd_seal(args: argparse.Namespace) -> int:
             ui.field("tracked .docx", result.tracked_path)
             + ui.c("  ← open in Word for native accept/reject", "dim")
         )
-    cxp = result.changex_path
+    if not result.journal_removed:
+        print(ui.field(".changex", result.changex_path) + ui.c("  portable provenance journal", "dim"))
+    cleaned = []
+    if result.baseline_removed:
+        cleaned.append("baseline snapshot")
+    if result.journal_removed:
+        cleaned.append(".changex journal")
+    if cleaned:
+        print(ui.c("  cleaned up: " + ", ".join(cleaned), "dim"))
     print()
-    print("  " + ui.c("See what changed:", "bold"))
-    if result.tracked_path:
-        print(ui.cmd(f'changex review "{cxp}" --doc "{result.tracked_path}" --out review.html'))
-        print(ui.cmd(f'changex view   "{cxp}" --doc "{result.tracked_path}"'))
+    if result.journal_removed:
+        print("  " + ui.c("Review:", "bold") + " open the tracked .docx in Word — accept / reject each change.")
     else:
-        print(ui.cmd(f'changex review "{cxp}" --out review.html'))
-        print(ui.cmd(f'changex view   "{cxp}"'))
+        cxp = result.changex_path
+        print("  " + ui.c("See what changed:", "bold"))
+        if result.tracked_path:
+            print(ui.cmd(f'changex review "{cxp}" --doc "{result.tracked_path}" --out review.html'))
+            print(ui.cmd(f'changex view   "{cxp}" --doc "{result.tracked_path}"'))
+        else:
+            print(ui.cmd(f'changex review "{cxp}" --out review.html'))
+            print(ui.cmd(f'changex view   "{cxp}"'))
     print()
     print("  " + ui.warn("provenance is degraded — agent/vendor/turn/prompt are null."))
     return 0
@@ -388,6 +401,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     seal.add_argument("docx", help="the (now edited) .docx to seal")
     seal.add_argument("--changex", help="the .changex from `open` (default: next to the docx)")
+    seal.add_argument(
+        "--clean",
+        action="store_true",
+        help="keep only the original + the tracked .docx (also remove the .changex journal)",
+    )
     seal.set_defaults(func=cmd_seal)
 
     shell = sub.add_parser(

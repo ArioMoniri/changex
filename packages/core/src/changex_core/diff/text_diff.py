@@ -69,6 +69,22 @@ class ParagraphDiff:
         return len(self.ops)
 
 
+def _expand_to_word(s: str, lo: int, hi: int) -> tuple[int, int]:
+    """Grow the half-open span ``[lo, hi)`` outward to the nearest whitespace.
+
+    Passive char-level diffing of e.g. ``Background`` → ``BACKGROUND-EDIT`` keeps the
+    common leading ``B`` and yields ``ackground`` → ``ACKGROUND-EDIT`` — a correct but
+    ugly mid-word redline. Snapping the changed span to whole whitespace-delimited
+    tokens makes the reconstructed op redline the *whole changed word*, which reads as
+    the real edit. Only the outer edges grow; inner unchanged text is preserved.
+    """
+    while lo > 0 and not s[lo - 1].isspace():
+        lo -= 1
+    while hi < len(s) and not s[hi].isspace():
+        hi += 1
+    return lo, hi
+
+
 def _intra_paragraph_op(
     node_id: Optional[str], before: str, after: str
 ) -> Optional[ReconstructedOp]:
@@ -97,6 +113,12 @@ def _intra_paragraph_op(
     added = after[b_lo:b_hi]
 
     if removed and added:
+        # Snap a mid-word change out to whole words so the redline shows the real
+        # edited word (e.g. "Background"→"BACKGROUND-EDIT", not "ackground"→"…").
+        a_lo, a_hi = _expand_to_word(before, a_lo, a_hi)
+        b_lo, b_hi = _expand_to_word(after, b_lo, b_hi)
+        removed = before[a_lo:a_hi]
+        added = after[b_lo:b_hi]
         op = {
             "kind": "text.replace",
             "node_id": node_id or "",

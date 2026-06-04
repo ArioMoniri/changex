@@ -116,6 +116,8 @@ class SealResult:
     baseline_unchanged: bool
     degraded: bool = True
     tracked_path: Optional[Path] = None
+    baseline_removed: bool = False
+    journal_removed: bool = False
 
 
 def open_passive(docx: str, changex: Optional[str] = None) -> OpenResult:
@@ -157,7 +159,7 @@ def open_passive(docx: str, changex: Optional[str] = None) -> OpenResult:
     )
 
 
-def seal_passive(docx: str, changex: Optional[str] = None) -> SealResult:
+def seal_passive(docx: str, changex: Optional[str] = None, *, clean: bool = False) -> SealResult:
     """Diff the current ``docx`` vs the stored baseline and append passive ops.
 
     Reconstructs a coarse, paragraph-level op stream and appends each op with
@@ -222,6 +224,26 @@ def seal_passive(docx: str, changex: Optional[str] = None) -> SealResult:
         except Exception:
             tracked_path = None
 
+    # The baseline sidecar is pure scaffolding for the diff — once we've sealed, it's
+    # dead weight, so remove it (leaving the original + journal + tracked review).
+    baseline_removed = False
+    try:
+        baseline_path.unlink()
+        baseline_removed = True
+    except OSError:  # pragma: no cover - best effort
+        pass
+
+    # --clean: when we produced a tracked review file, it carries the changes, so the
+    # journal is no longer the only record — drop it too, leaving just the original +
+    # the tracked .docx (the strict "two files" output).
+    journal_removed = False
+    if clean and tracked_path is not None:
+        try:
+            changex_path.unlink()
+            journal_removed = True
+        except OSError:  # pragma: no cover - best effort
+            pass
+
     return SealResult(
         changex_path=changex_path,
         appended=diff.total,
@@ -232,4 +254,6 @@ def seal_passive(docx: str, changex: Optional[str] = None) -> SealResult:
         baseline_unchanged=baseline_unchanged,
         degraded=True,
         tracked_path=tracked_path,
+        baseline_removed=baseline_removed,
+        journal_removed=journal_removed,
     )

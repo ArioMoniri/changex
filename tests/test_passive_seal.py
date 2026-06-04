@@ -164,6 +164,11 @@ def test_sealed_ops_replay_cleanly_onto_baseline(tmp_path: Path) -> None:
     _write_baseline(base)
     result = open_passive(str(base))
 
+    # seal removes the baseline sidecar by default — keep a copy to replay against.
+    baseline_uri = cx.Journal.open(str(result.changex_path)).header.doc["baseline_uri"]
+    baseline_copy = tmp_path / "baseline_copy.docx"
+    baseline_copy.write_bytes(Path(baseline_uri).read_bytes())
+
     edited = Document(str(base))
     for run in edited.paragraphs[0].runs:
         run.text = run.text.replace("quick", "swift")
@@ -171,8 +176,7 @@ def test_sealed_ops_replay_cleanly_onto_baseline(tmp_path: Path) -> None:
     seal_passive(str(base))
 
     journal = cx.Journal.open(str(result.changex_path))
-    baseline_uri = journal.header.doc["baseline_uri"]
-    adapter = DocxAdapter.load(baseline_uri)
+    adapter = DocxAdapter.load(str(baseline_copy))
     baseline_model = adapter.to_model()
     replayed = journal.replay(adapter, baseline_model)
     texts = [n.text() for n in replayed.children if n.node_kind == cx.NodeKind.PARAGRAPH]
@@ -203,3 +207,48 @@ def test_seal_rejects_active_capture_journal(tmp_path: Path) -> None:
     cx.Journal.open(str(changex), header=header)
     with pytest.raises(ValueError):
         seal_passive(str(base), str(changex))
+
+
+def test_intra_paragraph_diff_snaps_changed_span_to_whole_words() -> None:
+    """A mid-word change redlines the whole word, not just the differing characters."""
+    before = [ParagraphSpec(node_id="p1", text="Background. Spinal shunt.")]
+    after = [ParagraphSpec(node_id="p1", text="BACKGROUND-EDIT. Spinal shunt.")]
+    ops = [rec.op for rec in diff_paragraphs(before, after).ops]
+    assert len(ops) == 1
+    assert ops[0]["kind"] == "text.replace"
+    # not "ackground" → "ACKGROUND-EDIT"; the whole changed token (with its period).
+    assert ops[0]["before"] == "Background."
+    assert ops[0]["after"] == "BACKGROUND-EDIT."
+
+
+def _open_edit(base: Path) -> None:
+    open_passive(str(base))
+    edited = Document(str(base))
+    for run in edited.paragraphs[0].runs:
+        run.text = run.text.replace("quick", "swift")
+    edited.save(str(base))
+
+
+def test_seal_removes_baseline_sidecar_by_default(tmp_path: Path) -> None:
+    base = tmp_path / "doc.docx"
+    _write_baseline(base)
+    _open_edit(base)
+    result = seal_passive(str(base))
+    assert result.baseline_removed is True
+    assert result.journal_removed is False
+    assert not (tmp_path / "doc.baseline.docx").exists()  # scaffolding cleaned up
+    assert (tmp_path / "doc.changex").exists()            # journal kept
+    assert result.tracked_path is not None and result.tracked_path.exists()
+
+
+def test_seal_clean_leaves_only_original_and_tracked(tmp_path: Path) -> None:
+    base = tmp_path / "doc.docx"
+    _write_baseline(base)
+    _open_edit(base)
+    result = seal_passive(str(base), clean=True)
+    assert result.baseline_removed is True
+    assert result.journal_removed is True
+    assert base.exists()                                  # original (edited) kept
+    assert (tmp_path / "doc.tracked.docx").exists()       # the review file kept
+    assert not (tmp_path / "doc.baseline.docx").exists()  # both intermediates gone
+    assert not (tmp_path / "doc.changex").exists()
