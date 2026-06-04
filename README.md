@@ -116,7 +116,7 @@ With the MCP server connected (Quickstart step 2), just ask in plain language. T
 - **Claude Desktop app** — has its **own** config; `claude mcp add` does **not** touch it. Add changex there (absolute path) and **fully restart the app** → [docs/CLAUDE-SETUP.md §B](docs/CLAUDE-SETUP.md).
 - **claude.ai / ChatGPT in a browser** — can't read local files *at all*; use a desktop app, or Path B on a downloaded copy.
 
-So if `claude mcp list` says `✓ Connected` but a chat says *"I can't find changex / upload the file,"* you're talking to a **different Claude than the one you configured** — set it up for that app too. [Why local-only →](docs/LOCAL-ACCESS.md) · [Other apps →](docs/CALL-FROM-YOUR-APP.md)
+So if `claude mcp list` says `✓ Connected` but a chat says *"I can't find changex / upload the file,"* you're talking to a **different Claude than the one you configured** — set it up for that app too, see **[🔌 Set up your app](#-set-up-your-app)** below. [Why local-only →](docs/LOCAL-ACCESS.md)
 
 </details>
 
@@ -138,6 +138,126 @@ No MCP, no tool-calling, no SDK. Three steps:
 This path sees only before-and-after bytes, so it records a **faithful *what-changed*** but **degraded *who/why*** (agent / turn / prompt are `null`) — and ChangeX says so. For full provenance, use Path A.
 
 </details>
+
+---
+
+## 🔌 Set up your app
+
+ChangeX plugs in three ways — **local MCP** (the app spawns `changex-mcp` on your machine), **remote MCP** (the app dials a URL), or **REST/function tools**. Pick your app:
+
+| Your app | How it connects | Reads local files? |
+|---|---|---|
+| **Claude Code** (terminal / IDE) | local MCP — one command | ✅ |
+| **Claude Desktop app** | local MCP — *its own* config + restart | ✅ |
+| **ChatGPT** (desktop or web) | remote MCP connector, or a custom-GPT Action | ✅ *(server runs on your Mac)* |
+| **claude.ai** (web) | remote MCP connector | ✅ *(server runs on your Mac)* |
+| **Cursor / Cline** | local MCP — config block | ✅ |
+| **Gemini** (CLI / API) | local MCP / function tools | ✅ |
+| **Ollama / LM Studio** | local MCP if supported, else the no-tools path | ✅ |
+
+> 💡 GUI apps run with a minimal `PATH`, so in their config files use the **absolute** path from `which changex-mcp` (commonly `/opt/homebrew/bin/changex-mcp`). CLI clients launched from your shell usually find a bare `changex-mcp`.
+
+<details>
+<summary><b>🟧 Claude Code (terminal / IDE)</b></summary>
+
+<br>
+
+```bash
+claude mcp add -s user changex -- changex-mcp   # once; works in every folder, no duplicates
+claude mcp list                                 # changex → ✓ Connected
+```
+
+This is the **only** thing `claude mcp list` reflects — it does *not* configure the Claude Desktop app (below).
+
+</details>
+
+<details>
+<summary><b>🟧 Claude Desktop app</b> (separate from Claude Code!)</summary>
+
+<br>
+
+1. Get the absolute path: `which changex-mcp` → e.g. `/opt/homebrew/bin/changex-mcp`.
+2. Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+   ```json
+   { "mcpServers": { "changex": { "command": "/opt/homebrew/bin/changex-mcp", "args": [] } } }
+   ```
+3. **Fully quit & reopen** the app (⌘Q — not just close the window). The 🔨 tools icon should list `open_tracked`, `edit`, `save_tracked`, …
+
+[Step-by-step → docs/CLAUDE-SETUP.md](docs/CLAUDE-SETUP.md)
+
+</details>
+
+<details>
+<summary><b>🟩 ChatGPT (desktop or web)</b></summary>
+
+<br>
+
+ChatGPT dials a **URL** (it can't reach `localhost`), so run the HTTP server and expose it with a tunnel — the server runs on your Mac, so it still edits your **local** files:
+
+```bash
+export CHANGEX_MCP_TOKEN=$(openssl rand -hex 32)
+changex-mcp --http                                # serves http://127.0.0.1:9000/mcp
+cloudflared tunnel --url http://127.0.0.1:9000    # or: ngrok http 9000  → an https URL
+```
+
+- **MCP connector** (Settings → Connectors, developer mode): add an MCP server → URL `https://<tunnel>/mcp`, header `Authorization: Bearer <CHANGEX_MCP_TOKEN>`.
+- **Custom GPT → Actions:** instead run `changex-api` and import `https://<tunnel>/openapi.json` in the GPT's *Actions → Import from URL*.
+
+[Full recipe → docs/CALL-FROM-YOUR-APP.md](docs/CALL-FROM-YOUR-APP.md)
+
+</details>
+
+<details>
+<summary><b>🟦 claude.ai (web)</b></summary>
+
+<br>
+
+Same as the ChatGPT connector — run `changex-mcp --http` + a tunnel + a token, then **Settings → Connectors → Add custom connector**: URL `https://<tunnel>/mcp`, auth header `Authorization: Bearer <CHANGEX_MCP_TOKEN>`. (A web tab can't read local files itself; the tunneled server does the file I/O on your Mac.)
+
+</details>
+
+<details>
+<summary><b>🟪 Cursor / Cline</b></summary>
+
+<br>
+
+Add to `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global) — Cline uses the same block in its MCP settings:
+
+```json
+{ "mcpServers": { "changex": { "command": "changex-mcp", "args": [] } } }
+```
+
+</details>
+
+<details>
+<summary><b>🟨 Gemini (CLI / API)</b></summary>
+
+<br>
+
+**CLI** — add to `~/.gemini/settings.json`:
+
+```json
+{ "mcpServers": { "changex": { "command": "changex-mcp", "args": [] } } }
+```
+
+**API** — load [`integrations/gemini-functions.json`](integrations/gemini-functions.json) (function declarations) and route each call to the matching `changex-api` endpoint.
+
+</details>
+
+<details>
+<summary><b>⬛ Ollama / LM Studio (local models)</b></summary>
+
+<br>
+
+- **Speaks MCP?** (LM Studio, recent builds) — register the same stdio block:
+  ```json
+  { "mcpServers": { "changex": { "command": "changex-mcp", "args": [] } } }
+  ```
+- **Doesn't?** (plain Ollama) — use the **no-tools path**: `changex open report.docx` → let the model rewrite the file → `changex seal report.docx`. Same as [Path B](#-how-it-works) above.
+
+</details>
+
+> Flags, security (loopback vs `--public` + token), the OpenAI Agents SDK, and REST/function-tool schemas: **[docs/CALL-FROM-YOUR-APP.md](docs/CALL-FROM-YOUR-APP.md)**.
 
 ---
 
