@@ -13,9 +13,12 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
 </p>
 
-ChangeX captures **every edit an AI makes** to your documents — `.docx` · `.xlsx` · `.csv` · `.pptx` · `.md` · `.doc` — *as it happens*, with **who / what / when / why**. It's not a diff after the fact — it's a live, attributable record you can review and accept or reject. A diff tells you *how two files differ*; ChangeX tells you **what the AI actually did, in order, and why**. 🎯
-
-Works with **any model** 🤖 — Claude, ChatGPT, Gemini, or a local llama — and shows the changes as real Word track-changes 🖊️, a shareable HTML report 📄, or a live local web page 🌐.
+<p align="center">
+ChangeX captures <b>every edit an AI makes</b> to your documents —
+<code>.docx</code> · <code>.xlsx</code> · <code>.csv</code> · <code>.pptx</code> · <code>.md</code> · <code>.doc</code> —
+<i>as it happens</i>, with <b>who / what / when / why</b>.<br>
+A diff tells you <i>how two files differ</i>; ChangeX tells you <b>what the AI actually did, in order, and why</b> — and lets you accept or reject each change. 🎯
+</p>
 
 <p align="center">
   <a href="https://pypi.org/project/changex/"><img src="docs/assets/btn-install.svg" height="44" alt="uv tool install changex"></a>
@@ -26,73 +29,98 @@ Works with **any model** 🤖 — Claude, ChatGPT, Gemini, or a local llama — 
 </p>
 
 <p align="center">
-  <img src="docs/assets/docx.png" alt="A multi-section report in ChangeX — the AI's edits shown inline in the document's own outline, with a who/why change-log" width="760">
-  <br><sub><em>A real, multi-section report in ChangeX's default view: every AI edit inline in place, plus a who/why change-log. Hover any change for who &amp; when.</em></sub>
+  <img src="docs/assets/docx.png" alt="A multi-section report in ChangeX — the AI's edits inline in the document's own outline, with a who/why change-log" width="720">
+  <br><sub><em>ChangeX's default view: every AI edit inline in the document's own outline, plus a who/why change-log.</em></sub>
 </p>
 
 ---
 
-## ⚡ Install
-
-**Step 1 — install the tool:**
+## 🚀 Quickstart
 
 ```bash
-uv tool install changex      # ✅ recommended — isolated, dodges PEP 668
-# or:  pipx install changex   ·   pip install changex   ·   zero-install:  uvx changex
-```
+# 1) install the tool
+uv tool install changex                      # or: pipx install changex · pip install changex
 
-**Step 2 — (optional) wire it into your AI *once*, at user scope** so it works in every project and never duplicates:
-
-```bash
+# 2) connect it to your AI — ONCE, works in every project (see "Updating" to avoid duplicates)
 claude mcp add -s user changex -- changex-mcp
-claude mcp list                              # changex should show ✓ Connected
+
+# 3) ask your assistant, e.g.:
+#    "Use changex to open report.docx, tighten the intro as tracked changes,
+#     save it, then show me a review of what changed."
 ```
 
-### 🔄 Updating (and how to avoid duplicates)
+That's it — every edit lands as a **real Word tracked change** you can accept/reject, with full provenance. No MCP, a local/offline model, or a human editing by hand? → **[Without tools](#-how-it-works)** below.
+
+<details>
+<summary><b>🔄 Updating &amp; avoiding duplicate MCP entries</b></summary>
+
+<br>
 
 - **Upgrade the tool:** `uv tool upgrade changex` · `pipx upgrade changex` · `pip install -U changex`. The `changex-mcp` binary updates **in place** — your MCP registration keeps working, so there's **nothing to re-add**.
-- **Avoid duplicate MCP entries:** register **once** with `-s user` (Step 2). Running `claude mcp add changex …` *without* `-s user` adds a **separate per-directory entry**, so doing it in several folders piles up duplicates. To reset to a single clean entry:
+- **One entry, no duplicates:** always register with **`-s user`** (Quickstart step 2). Running `claude mcp add changex …` *without* `-s user` adds a **separate per-directory entry**, so doing it in several folders piles up duplicates. To reset to a single clean entry:
+
   ```bash
   claude mcp remove changex                    # repeat in each folder you added it to
   claude mcp add -s user changex -- changex-mcp
+  claude mcp list                              # changex should show ✓ Connected
   ```
 
-> Hitting `externally-managed-environment` (PEP 668), a `pip` cache warning, or an MCP "Failed to connect"? See **[Troubleshooting](#-troubleshooting)** — they're one-liners.
+</details>
 
-## 🤖 Use it from your AI
+---
 
-With the MCP server registered (Step 2 above), just ask 💬 — for example:
+## 🧭 How it works
+
+<p align="center">
+  <img src="docs/assets/flow.svg" alt="ChangeX flow: open → edit → seal → review" width="760">
+</p>
+
+There are **two ways** to capture an AI's edits — pick based on what your model can do:
+
+| Path | Use it when | Provenance |
+|------|-------------|------------|
+| **🤖 From your AI (MCP)** | a tool-capable desktop client (Claude Desktop/Code, Cursor, Cline) | **full** — who / vendor / turn / prompt, per edit |
+| **🪄 Without tools (`open`/`seal`)** | any model, offline/local, a script, or a human | **what-changed** (who/why is degraded — said out loud) |
+
+Either way you get a portable, hash-chained **`.changex`** journal plus a tracked document to review.
+
+<details>
+<summary><b>🤖 Path A — from your AI (full provenance)</b></summary>
+
+<br>
+
+With the MCP server connected (Quickstart step 2), just ask in plain language. The model edits **through** ChangeX (`open_tracked → get_outline → edit → save_tracked`), so every change is a real Word revision — nothing silently rewritten.
 
 > *"Use changex to open `~/Documents/Q3-report.docx`. Tighten the executive summary, fix the heading levels, and replace the passive voice in section 2 — make every change a **tracked revision** authored by you, save it, then show me a review of what changed."*
 
-The model edits **through** ChangeX (`open_tracked → get_outline → edit → save_tracked`), so every change lands as a real Word revision with full provenance — nothing silently rewritten. You get back exactly the view in the screenshot above. ✅
+🔐 **Local files:** this works in **desktop/local** clients where `changex-mcp` runs *on your machine*. A **browser** chat (claude.ai / ChatGPT web) can't see local files — use a desktop app, or Path B on a downloaded copy. [Why →](docs/LOCAL-ACCESS.md) · [Claude setup →](docs/CLAUDE-SETUP.md) · [Other apps →](docs/CALL-FROM-YOUR-APP.md)
 
-> 🔐 **Reaching your local files:** this works in **desktop/local** clients — Claude **Desktop/Code**, Cursor, Cline — where `changex-mcp` runs *on your machine* and reads your local docs. A **browser** chat (claude.ai / ChatGPT web) can't see local files; use the desktop app, or the no-tools path below on a downloaded copy. **[Set it up → docs/CLAUDE-SETUP.md](docs/CLAUDE-SETUP.md)** · [why local-only](docs/LOCAL-ACCESS.md)
+</details>
 
-👉 Per-app setup for **ChatGPT, Gemini, Cursor, Cline, Ollama, LM Studio**: [docs/CALL-FROM-YOUR-APP.md](docs/CALL-FROM-YOUR-APP.md)
+<details>
+<summary><b>🪄 Path B — without tools, from any model or a human</b></summary>
 
-## 🪄 No tools? Capture from any model
+<br>
 
-No MCP, no tool-calling, no SDK — works with offline/local models, a script, or a human. Three steps:
-
-<p align="center">
-  <img src="docs/assets/flow.svg" alt="ChangeX flow: open → edit → seal → review" width="820">
-</p>
+No MCP, no tool-calling, no SDK. Three steps:
 
 1. **`changex open report.docx`** — snapshot the original.
 2. **Let anything edit `report.docx` in place** — Claude, ChatGPT, a local llama, a script, or you.
-3. **`changex seal report.docx`** — ChangeX diffs the file against the snapshot and **reconstructs** the changes into `report.changex` + a Word-openable `report.tracked.docx`.
+3. **`changex seal report.docx`** — ChangeX diffs against the snapshot and reconstructs the changes into `report.changex` + a Word-openable `report.tracked.docx`.
 
 <p align="center">
-  <img src="docs/assets/terminal.svg" alt="Terminal: changex open report.docx, edits happen, then changex seal report.docx" width="820">
+  <img src="docs/assets/terminal.svg" alt="Terminal: changex open report.docx, edits happen, then changex seal report.docx" width="760">
 </p>
 
-This path sees only before-and-after bytes, so it records a **faithful *what-changed*** but **degraded *who/why*** (the agent / turn / prompt are `null`) — and ChangeX says so out loud. Want full provenance (who/when/why per edit)? Use the [MCP path](#-use-it-from-your-ai) above. ⚖️
+This path sees only before-and-after bytes, so it records a **faithful *what-changed*** but **degraded *who/why*** (agent / turn / prompt are `null`) — and ChangeX says so. For full provenance, use Path A.
 
-## 👀 See the changes — your pick
+</details>
 
-`changex seal` prints these for you with your real paths — or run them yourself on the
-`.changex` + tracked `.docx`:
+---
+
+## 👀 Review the changes
+
+`changex seal` prints these with your real paths — or run them yourself:
 
 ```bash
 changex review report.changex --doc report.tracked.docx --out review.html   # 📄 inline in the doc's outline
@@ -102,22 +130,23 @@ changex view   report.changex --doc report.tracked.docx                     # �
 
 💡 Paths with spaces need quotes: `changex open "My Report.docx"`.
 
+---
+
 ## 📦 What it tracks
 
 | Format | How changes show up |
 |--------|---------------------|
-| 📄 `.docx` | **Native Word track changes** — accept/reject right in Word (text, paragraph, style, **run-format**, **paragraph move**) |
-| 📊 `.xlsx` / `.csv` | Non-destructive review copy — colored cells, comments, a `Changes` sheet (your original stays untouched) |
+| 📄 `.docx` | **Native Word track changes** — accept/reject in Word (text, paragraph, style, run-format, paragraph move) |
+| 📊 `.xlsx` / `.csv` | Non-destructive review copy — colored cells, comments, a `Changes` sheet (original untouched) |
 | 📽️ `.pptx` | Revision overlay + a generated "Revisions" summary slide |
 | 📝 `.md` | Inline HTML redline (Markdown has no native track-changes) |
 | 🗂️ `.doc` (legacy) | Auto-converted to `.docx` (LibreOffice), then native Word revisions — best-effort |
 
-Every format also writes a portable **`.changex`** journal — a hash-chained log of each operation with its provenance. Honest per-format limits: [docs/FIDELITY.md](docs/FIDELITY.md). ⚖️
-
-> **Capture vs. review:** live **MCP** capture and the no-tools **`open`/`seal`** path are **docx-only**; the other formats are captured with scripted **`changex track`** (below) or the `changex-core` API. The review surfaces (`review`, `view`, the `.changex` journal) work for every format.
+Every format also writes the portable **`.changex`** journal. Honest per-format limits: [docs/FIDELITY.md](docs/FIDELITY.md). Live **MCP** and the **`open`/`seal`** path are docx-only; other formats are captured with scripted **`changex track`** (see **Example prompts** below).
 
 <details>
-<summary>🖼️ <b>See it on every format</b> (click to expand)</summary>
+<summary>🖼️ <b>See it on every format</b></summary>
+
 <br>
 
 | Markdown — inline redline | CSV — side-by-side redline |
@@ -128,9 +157,16 @@ Every format also writes a portable **`.changex`** journal — a hash-chained lo
 
 </details>
 
-## ✍️ Prompts to copy
+---
 
-Talk to ChangeX in plain language through your AI — the MCP tools do the work. Each prompt below notes what it does:
+## 📖 More
+
+<details>
+<summary><b>✍️ Example prompts (copy-paste)</b></summary>
+
+<br>
+
+Talk to ChangeX in plain language through your AI — each prompt notes what it does:
 
 > **Tighten + restyle** — *"Open `report.docx` with changex. Replace every "utilize" with "use", fix the two run-on sentences in the intro, and bold the section headings — all as tracked revisions. Save and show me the review."*
 
@@ -138,27 +174,30 @@ Talk to ChangeX in plain language through your AI — the MCP tools do the work.
 
 > **Move a section** *(exercises `node.move`)* — *"Open `contract.docx`, move the "Termination" clause to just after "Payment" as a tracked move, and don't touch anything else."*
 
-**What you get back:** native Word revisions plus the inline review shown in the screenshot above — accept/reject each change in Word, in the browser (`changex view`), or in the HTML report.
-
-**Prefer scripted edits (any format, no model)?** Hand `changex track` a small `ops.json` of ops for that one file — e.g. for a spreadsheet:
+**Scripted edits (any format, no model)** — hand `changex track` a small `ops.json` for that one file, e.g. a spreadsheet:
 
 ```json
 [
   { "kind": "cell.set", "sheet": "Q4", "ref": "B3", "before": "95", "after": "120", "rationale": "cloud spend rose" },
-  { "kind": "formula.set", "sheet": "Q4", "ref": "C3", "before": "=B3*1.1", "after": "=B3*1.15", "rationale": "higher growth assumption" }
+  { "kind": "formula.set", "sheet": "Q4", "ref": "C3", "before": "=B3*1.1", "after": "=B3*1.15", "rationale": "higher growth" }
 ]
 ```
 
 ```bash
 changex track budget.xlsx ops.json --out budget.tracked.xlsx --changex budget.changex
-changex view  budget.changex --doc budget.tracked.xlsx       # review the overlay
+changex view  budget.changex --doc budget.tracked.xlsx
 ```
 
-(For `.docx`, the ops are `text.replace` / `node.insert` / `style.change` / `format.run` / `node.move` addressed by `node_id` — see [docs/CHANGEX_FORMAT.md](docs/CHANGEX_FORMAT.md).)
+(For `.docx`, ops are `text.replace` / `node.insert` / `style.change` / `format.run` / `node.move` by `node_id` — see [docs/CHANGEX_FORMAT.md](docs/CHANGEX_FORMAT.md).)
 
-## 🖥️ The `changex` CLI
+</details>
 
-Run `changex` (or `changex help`) for the full command list:
+<details>
+<summary><b>🖥️ CLI commands</b></summary>
+
+<br>
+
+Run `changex` (or `changex help`) for the full list:
 
 ```text
  ╔═╗╦ ╦╔═╗╔╗╔╔═╗╔═╗═╗ ╦
@@ -181,13 +220,18 @@ Run `changex` (or `changex help`) for the full command list:
     help     show this command list
 ```
 
-`changex shell` drops you into a Python REPL with `changex_core` preloaded; `changex --version` prints the version.
+`changex shell` opens a Python REPL with `changex_core` preloaded; `changex --version` prints the version.
 
-## 💻 Desktop app (optional)
+</details>
 
-ChangeX ships an optional **[Tauri](https://tauri.app)** desktop viewer — a small, double-clickable window over the **same** review UI you get from `changex view`.
+<details>
+<summary><b>💻 Desktop app (optional) + downloads</b></summary>
 
-**Why it exists:** so non-technical reviewers can open a native app instead of running a terminal command. It wraps the same renderer — it doesn't add review features. **You usually don't need it:** `changex view` (zero-install local page) and the single-file HTML report already give the full accept/reject review on every platform. Reach for the desktop app only if you specifically want an icon to double-click.
+<br>
+
+ChangeX ships an optional **[Tauri](https://tauri.app)** desktop viewer — a small, double-clickable window over the **same** review UI as `changex view`.
+
+**You usually don't need it.** `changex view` (zero-install local page) and the single-file HTML report already give the full accept/reject review on every platform. The desktop app just adds a native icon to double-click for non-technical reviewers; it doesn't add features.
 
 <p align="center">
   <a href="https://github.com/ArioMoniri/changex/releases/latest"><img src="docs/assets/btn-mac.svg" height="44" alt="Download macOS .dmg"></a>
@@ -197,103 +241,79 @@ ChangeX ships an optional **[Tauri](https://tauri.app)** desktop viewer — a sm
   <a href="https://github.com/ArioMoniri/changex/releases/latest"><img src="docs/assets/btn-linux.svg" height="44" alt="Download Linux .AppImage"></a>
 </p>
 
-Installers are attached to **[tagged releases](https://github.com/ArioMoniri/changex/releases)**: the macOS `.dmg` is **signed + notarized**; the Windows `.msi` and Linux `.AppImage`/`.deb` are unsigned (Gatekeeper/SmartScreen may warn). Building/signing details: [docs/CI-AND-SECRETS.md](docs/CI-AND-SECRETS.md).
+Installers attach to **[tagged releases](https://github.com/ArioMoniri/changex/releases)**: macOS `.dmg` is **signed + notarized**; Windows `.msi` and Linux `.AppImage`/`.deb` are unsigned. Build/sign details: [docs/CI-AND-SECRETS.md](docs/CI-AND-SECRETS.md).
+
+</details>
+
+---
 
 ## 🛟 Troubleshooting
 
-<details open>
-<summary><b>MCP server shows <code>✗ Failed to connect</code> (with <code>uvx changex-mcp</code> or <code>npx …</code>)</b></summary>
+<details>
+<summary><b>MCP server shows <code>✗ Failed to connect</code> (with <code>uvx</code> / <code>npx</code>)</b></summary>
 
-The first `uvx changex-mcp` / `npx -y …` invocation **downloads the package and all its
-dependencies** into a fresh environment, which can take longer than the MCP health-check
-timeout — so `claude mcp list` reports *Failed to connect* even though the server is fine.
-(That's why a locally-installed binary connects but a `uvx`/`npx` launcher times out.)
+<br>
 
-**Fix — register the installed binary at user scope** (no cold start, no duplicates):
+The first `uvx changex-mcp` / `npx -y …` downloads the package + all deps into a fresh environment, which can exceed the MCP health-check timeout — so `claude mcp list` says *Failed to connect* even though the server is fine. **Fix — register the installed binary at user scope:**
 
 ```bash
-claude mcp remove changex                 # drop any old uvx/per-folder entry
+claude mcp remove changex                 # drop any old uvx / per-folder entry
 claude mcp add -s user changex -- changex-mcp
 claude mcp list                           # changex should now show ✓ Connected
 ```
 
-Prefer the zero-install `uvx` form? **Warm the cache first** so the next launch is instant:
-`uv tool install changex-mcp` (or run `uvx changex-mcp` once and let it download, then Ctrl-C).
+Prefer the zero-install `uvx` form? Warm the cache first: `uv tool install changex-mcp`.
+
 </details>
 
 <details>
 <summary><b><code>WARNING: Cache entry deserialization failed, entry ignored</code> on <code>pip install</code></b></summary>
 
-```text
-pip install -U changex --break-system-packages
-Requirement already satisfied: changex ... (0.1.0)
-WARNING: Cache entry deserialization failed, entry ignored
-```
+<br>
 
-This is a **pip HTTP-cache warning, not a changex failure** — pip found a stale/corrupt entry
-in its wheel cache and skipped it. The install still succeeds. To clear it and force a clean
-re-fetch:
+This is a **pip HTTP-cache warning, not a changex failure** — pip skipped a stale cache entry; the install still succeeds. To clear it:
 
 ```bash
 python3 -m pip cache purge
 python3 -m pip install -U changex --break-system-packages --no-cache-dir
 ```
 
-If `pip` still reports an older version (e.g. `0.1.0`) afterwards, the newer one may not be on
-PyPI yet — see below.
-</details>
+If `pip` still reports an older version afterwards, the new one may not be on PyPI yet (the index CDN can lag a few minutes) — wait, or install from source (`git clone … && uv sync`).
 
-<details>
-<summary><b>PyPI still shows an old version</b></summary>
-
-`pip` can only install what's on PyPI, and a freshly-published version can lag the index CDN by
-a few minutes. If `pip install -U changex` keeps landing an older version, give it ~10 min, or
-install from source:
-
-```bash
-git clone https://github.com/ArioMoniri/changex && cd changex
-uv sync     # or: pip install -e packages/core -e "packages/mcp[http]" -e packages/api
-```
 </details>
 
 <details>
 <summary><b><code>error: externally-managed-environment</code> (PEP 668)</b></summary>
 
-Your system Python refuses a global `pip install`. Use an isolated installer instead:
-`uv tool install changex` (or `pipx install changex`). If you must use `pip`, add
-`--break-system-packages` — but `uv`/`pipx` are cleaner.
+<br>
+
+Your system Python refuses a global `pip install`. Use an isolated installer: `uv tool install changex` (or `pipx install changex`). If you must use `pip`, add `--break-system-packages`.
+
 </details>
 
 <details>
-<summary><b>Legacy <code>.doc</code> won't open / paths with spaces</b></summary>
+<summary><b>Legacy <code>.doc</code> won't open · paths with spaces</b></summary>
 
-- **`.doc` (legacy Word)** is converted to `.docx` on ingest via **LibreOffice** — install it and make
-  sure `soffice` is on your `PATH`. The conversion is best-effort and lossy for exotic legacy features.
+<br>
+
+- **`.doc`** is converted to `.docx` via **LibreOffice** — install it and ensure `soffice` is on `PATH` (best-effort, lossy for exotic legacy features).
 - **Paths with spaces** must be quoted: `changex open "My Report.docx"`.
-- **Browser chats** (claude.ai / ChatGPT web) can't read local files — use a desktop client, or
-  `open`/`seal` on a downloaded copy. [Why →](docs/LOCAL-ACCESS.md)
+- **Browser chats** can't read local files — use a desktop client, or `open`/`seal` on a downloaded copy.
+
 </details>
+
+---
 
 ## ℹ️ About
 
-**ChangeX is a provenance-first change tracker for AI document edits.** When a model touches a
-document, ChangeX records *what* changed, *in what order*, and *who/why* — as a portable,
-hash-chained **`.changex`** journal — and projects that journal onto whatever review surface the
-format supports: **native Word track-changes** for `.docx`, and a non-native review overlay for
-`.xlsx` / `.csv` / `.pptx` / `.md`. It's **local-first** (documents never leave your machine; no
-network calls in the core) and **vendor-neutral** (the MCP and CLI surfaces behave the same across
-Claude, ChatGPT, Gemini, and local models).
+**ChangeX is a provenance-first change tracker for AI document edits.** It records *what* changed, *in what order*, and *who/why* — as a portable, hash-chained **`.changex`** journal — and projects that onto whatever review surface the format supports: **native Word track-changes** for `.docx`, a non-native overlay for `.xlsx` / `.csv` / `.pptx` / `.md`. It's **local-first** (no network calls in the core) and **vendor-neutral** (MCP + CLI behave the same across Claude, ChatGPT, Gemini, and local models). Design principle: **honesty over hype** — a degraded/reconstructed result is never presented as full provenance.
 
-> **Repository description** *(for the GitHub "About" field):*
-> *Provenance-first change tracking for AI document edits — native Word track-changes + a portable, hash-chained `.changex` journal. Works with any model (MCP + CLI). docx · xlsx · csv · pptx · md.*
->
-> *Topics:* `track-changes` · `provenance` · `mcp` · `docx` · `ooxml` · `ai` · `llm` · `event-sourcing` · `document-automation` · `python`
+> **Repository description** *(GitHub "About" field):* Provenance-first change tracking for AI document edits — native Word track-changes + a portable, hash-chained `.changex` journal. Works with any model (MCP + CLI). docx · xlsx · csv · pptx · md.
 
-Design principles: **honesty over hype** (a reconstructed/degraded result is never presented as
-full provenance), **local-first**, and **vendor-neutral**. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-for the design.
+<details>
+<summary><b>📦 Published packages</b></summary>
 
-## 📦 Published packages
+<br>
 
 All on PyPI (MIT) — `pip install changex` pulls them all:
 
@@ -304,16 +324,10 @@ All on PyPI (MIT) — `pip install changex` pulls them all:
 | [![changex-mcp](https://img.shields.io/pypi/v/changex-mcp?label=changex-mcp&color=3775A9&logo=pypi&logoColor=white)](https://pypi.org/project/changex-mcp/) | the MCP server (stdio + remote HTTP) |
 | [![changex-api](https://img.shields.io/pypi/v/changex-api?label=changex-api&color=3775A9&logo=pypi&logoColor=white)](https://pypi.org/project/changex-api/) | FastAPI REST + OpenAPI wrapper |
 
-## 🤝 Contributing
+</details>
 
-Issues and PRs are welcome! Start with **[CONTRIBUTING.md](CONTRIBUTING.md)** — it covers the
-dev setup (`uv sync`), running the tests, and the project layout. Everyone participating is
-expected to follow our **[Code of Conduct](CODE_OF_CONDUCT.md)**.
+---
 
-## 🗺️ Dig deeper
-
-📥 [Install](docs/INSTALL.md) · 🛠️ [Claude setup](docs/CLAUDE-SETUP.md) · 🔌 [Integrations](docs/INTEGRATION.md) · 🔐 [Local file access](docs/LOCAL-ACCESS.md) · 🏗️ [Architecture](docs/ARCHITECTURE.md) · 📐 [.changex format](docs/CHANGEX_FORMAT.md) · ⚖️ [Fidelity & limits](docs/FIDELITY.md) · 🔑 [CI & secrets](docs/CI-AND-SECRETS.md)
-
-## 📜 License
-
-[MIT](LICENSE) — © 2026 Ariorad Moniri.
+🤝 **Contributing:** see [CONTRIBUTING.md](CONTRIBUTING.md) · follow the [Code of Conduct](CODE_OF_CONDUCT.md)
+&nbsp;·&nbsp; 🗺️ **Docs:** [Install](docs/INSTALL.md) · [Architecture](docs/ARCHITECTURE.md) · [.changex format](docs/CHANGEX_FORMAT.md) · [Fidelity](docs/FIDELITY.md) · [CI & secrets](docs/CI-AND-SECRETS.md)
+&nbsp;·&nbsp; 📜 **License:** [MIT](LICENSE) — © 2026 Ariorad Moniri
