@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 260" width="900" height="260" role="img" aria-label="ChangeX — see exactly what an AI changed, line by line, with receipts">
+  <title>ChangeX — see exactly what an AI changed, line by line, with receipts</title>
+  <desc>An animated banner: a document line where the word "quick" is struck through and "rapid" is inserted as a tracked change, with a blinking caret and pulsing format chips for .docx, .xlsx, .pptx, .csv, and .md.</desc>
+  <defs>
+    <linearGradient id="cxbg" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#0b1020"/>
+      <stop offset="1" stop-color="#16203a"/>
+    </linearGradient>
+    <linearGradient id="cxaccent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d97757"/>
+      <stop offset="1" stop-color="#f0a98c"/>
+    </linearGradient>
+    <style>
+      .wm    { font: 800 56px ui-sans-serif,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; }
+      .wmA   { fill:#eef2fb; }
+      .wmX   { fill:url(#cxaccent); }
+      .tag   { font: 500 16px ui-sans-serif,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; fill:#9fb0cc; }
+      .doc   { font: 400 20px ui-monospace,'SF Mono',Menlo,Consolas,monospace; fill:#dbe4f3; }
+      .del   { fill:#ff8a8a; }
+      .ins   { fill:#69db8a; opacity:0; animation: cxIns 8s ease-in-out infinite; }
+      .caret { fill:#69db8a; animation: cxBlink 1.05s step-end infinite; }
+      .strike{ stroke:#ff8a8a; stroke-width:2.4; stroke-linecap:round; fill:none;
+               stroke-dasharray:66; stroke-dashoffset:66; animation: cxStrike 8s ease-in-out infinite; }
+      .pill  { fill:#18233c; stroke:#2c3a5e; }
+      .pt    { font: 600 13px ui-sans-serif,system-ui,sans-serif; fill:#aab8d6; text-anchor:middle; }
+      .p     { animation: cxPulse 4s ease-in-out infinite; }
+      @keyframes cxBlink  { 0%,55% { opacity:1 } 56%,100% { opacity:0 } }
+      @keyframes cxStrike { 0%,10% { stroke-dashoffset:66 } 26%,90% { stroke-dashoffset:0 } 100% { stroke-dashoffset:66 } }
+      @keyframes cxIns    { 0%,22% { opacity:0 } 38%,90% { opacity:1 } 100% { opacity:0 } }
+      @keyframes cxPulse  { 0%,100% { opacity:.45 } 50% { opacity:1 } }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="260" rx="22" fill="url(#cxbg)"/>
+  <rect x="0.75" y="0.75" width="898.5" height="258.5" rx="21.25" fill="none" stroke="#26324f"/>
+
+  <text class="wm" x="54" y="86"><tspan class="wmA">Change</tspan><tspan class="wmX">X</tspan></text>
+  <text class="tag" x="56" y="118">See exactly what an AI changed — line by line, with receipts.</text>
+
+  <line x1="56" y1="140" x2="844" y2="140" stroke="#26324f"/>
+
+  <text class="doc" x="56" y="196">Reliability held steady despite the</text>
+  <text class="doc del" x="488" y="196">quick</text>
+  <line class="strike" x1="486" y1="189" x2="552" y2="189"/>
+  <text class="doc ins" x="560" y="196">rapid</text>
+  <text class="doc" x="620" y="196"> jump in traffic.</text>
+  <rect class="caret" x="826" y="180" width="2.5" height="20"/>
+
+  <g class="p" style="animation-delay:0s">
+    <rect class="pill" x="56" y="216" width="60" height="26" rx="13"/>
+    <text class="pt" x="86" y="233">.docx</text>
+  </g>
+  <g class="p" style="animation-delay:.4s">
+    <rect class="pill" x="128" y="216" width="58" height="26" rx="13"/>
+    <text class="pt" x="157" y="233">.xlsx</text>
+  </g>
+  <g class="p" style="animation-delay:.8s">
+    <rect class="pill" x="198" y="216" width="58" height="26" rx="13"/>
+    <text class="pt" x="227" y="233">.pptx</text>
+  </g>
+  <g class="p" style="animation-delay:1.2s">
+    <rect class="pill" x="268" y="216" width="50" height="26" rx="13"/>
+    <text class="pt" x="293" y="233">.csv</text>
+  </g>
+  <g class="p" style="animation-delay:1.6s">
+    <rect class="pill" x="330" y="216" width="46" height="26" rx="13"/>
+    <text class="pt" x="353" y="233">.md</text>
+  </g>
+</svg>

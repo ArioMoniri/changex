@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 46" width="300" height="46" role="img" aria-label="Use from Claude and any model">
+  <title>Use from Claude and any model</title>
+  <defs>
+    <linearGradient id="bc" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6573e0"/>
+      <stop offset="1" stop-color="#3f4dba"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="298" height="44" rx="22" fill="url(#bc)" stroke="#3a47ad"/>
+  <path d="M26 14 L28 21 L35 23 L28 25 L26 32 L24 25 L17 23 L24 21 Z" fill="#fff"/>
+  <text x="166" y="29" font-family="ui-sans-serif,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="15.5" font-weight="700" fill="#fff" text-anchor="middle">Use from Claude &amp; any model</text>
+</svg>

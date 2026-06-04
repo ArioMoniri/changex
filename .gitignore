@@ -36,3 +36,6 @@ packages/viewer/src-tauri/icons/icon.ico
 packages/viewer/src-tauri/icons/Square*.png
 packages/viewer/src-tauri/icons/StoreLogo.png
 packages/viewer/src-tauri/icons/_source.png
+
+# screenshot intermediates (only the PNGs are committed)
+docs/assets/_render/

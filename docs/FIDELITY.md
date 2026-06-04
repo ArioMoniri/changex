@@ -5,7 +5,7 @@
 > oversold. If a row says Planned, the code path does not exist yet; an Available
 > row is reachable from the CLI/MCP today. If a guarantee is qualified, the
 > qualification is load-bearing — read it. **"Available" never means native
-> accept/reject** unless the row says so — for xlsx/csv/pptx it means journal +
+> accept/reject** unless the row says so — for xlsx/csv/pptx/md it means journal +
 > non-native overlay.
 
 ChangeX renders an operation journal onto whatever review surface a format
@@ -16,20 +16,23 @@ overlay (a format with no track-changes concept).
 
 ## 1. Per-format capability matrix
 
-| Format | Status | Capture | Native review surface | What you actually get | Limits |
-|--------|--------|---------|-----------------------|------------------------|--------|
-| **`.docx`** | **Available (v0.1)** | active (MCP) + passive (`open`/`seal`) | **Native Word revisions** (`<w:ins>` / `<w:del>`), author = model id, timestamped | Real accept/reject in Word; `.changex` journal; HTML/file report; `changex view` webserver | Frozen op set (text insert/delete/replace, paragraph insert/delete, style change). `format.run` / `node.move` reserved (see §4). |
-| **`.xlsx`** | **Available** | active (MCP) + passive (`open`/`seal`) | **Non-native overlay**: colored cells + threaded comments + a generated "Changes" audit sheet | `.changex` journal; the overlay written back into the workbook; HTML/file report; `changex view` webserver | xlsx has **no native track-changes**, so review is an annotation overlay, **not** accept/reject-in-place. Op set: `cell.set` / `formula.set` / `row.insert` / `row.delete`. |
-| **`.csv`** | **Available** | active (MCP) + passive (`open`/`seal`) | **Non-native overlay**: unified / side-by-side redline | `.changex` journal; redline projection; HTML/file report; `changex view` webserver | No in-file revision concept at all; review lives entirely in the journal + redline projection. |
-| **`.pptx`** | **Available** | active (MCP) + passive (`open`/`seal`) | **Non-native overlay**: revision callout shapes + a generated "Revisions" summary slide / notes | `.changex` journal; the overlay written back into the deck; HTML/file report; `changex view` webserver | pptx has **no native track-changes format**; "accept/reject" is reconstructed from the journal, **not** a PowerPoint feature. Op set: `slide.insert` / `slide.delete` / `shape.edit`. |
-| **`.doc` (legacy)** | **Planned / Experimental** | passive only (realistically) | via docx after conversion | — (LibreOffice-headless `.doc` → `.docx` conversion path documented, not built) | Conversion is lossy for exotic legacy features; round-trip fidelity is not guaranteed. Treat as best-effort, not authoritative. |
+| Format | Status | How edits are captured | Native review surface | What you actually get | Limits |
+|--------|--------|------------------------|-----------------------|------------------------|--------|
+| **`.docx`** | **Available (v0.1)** | active (MCP `changex-mcp`) · passive (`open`/`seal`) · scripted (`changex track`) | **Native Word revisions** (`<w:ins>` / `<w:del>` / `<w:rPrChange>` / `<w:pPrChange>`), author = model id, timestamped | Real accept/reject in Word; `.changex` journal; HTML/file report; `changex view` webserver | Op set: text insert/delete/replace, paragraph insert/delete, style change, **run-format (`format.run`)** and **paragraph move (`node.move`)** — all implemented (see §4). |
+| **`.xlsx`** | **Available** | scripted (`changex track`) / programmatic (`changex-core`) | **Non-native overlay**: colored cells + threaded comments + a generated "Changes" audit sheet | `.changex` journal; the overlay written back into the workbook; HTML/file report; `changex view` webserver | xlsx has **no native track-changes**, so review is an annotation overlay, **not** accept/reject-in-place. Op set: `cell.set` / `formula.set` / `row.insert` / `row.delete`. Live MCP + passive `open`/`seal` are docx-only today. |
+| **`.csv`** | **Available** | scripted (`changex track`) / programmatic | **Non-native overlay**: unified / side-by-side redline | `.changex` journal; redline projection; HTML/file report; `changex view` webserver | No in-file revision concept at all; review lives entirely in the journal + redline projection. |
+| **`.pptx`** | **Available** | scripted (`changex track`) / programmatic | **Non-native overlay**: revision callout shapes + a generated "Revisions" summary slide / notes | `.changex` journal; the overlay written back into the deck; HTML/file report; `changex view` webserver | pptx has **no native track-changes format**; "accept/reject" is reconstructed from the journal, **not** a PowerPoint feature. Op set: `slide.insert` / `slide.delete` / `shape.edit`. |
+| **`.md`** | **Available (v0.1.1)** | scripted (`changex track`) / programmatic | **Non-native overlay**: inline HTML redline (`<ins>` / `<del>`) | `.changex` journal; the HTML redline projection; HTML/file report; `changex view` webserver | Markdown has **no native track-changes**; review is the inline HTML redline + journal. Text insert/delete/replace over the parsed block model. |
+| **`.doc` (legacy)** | **Available — best-effort (v0.1.1)** | via `.docx` after a LibreOffice headless conversion | **Native Word revisions** (post-conversion, identical to `.docx`) | Same review surfaces as `.docx` once converted | Conversion needs `soffice` (LibreOffice) on PATH and is **lossy for exotic legacy features**; round-trip fidelity is not guaranteed. Treat as best-effort, not authoritative. |
 
-**Read the matrix this way:** `.docx`, `.xlsx`, `.csv`, and `.pptx` are all built and
-reachable from the CLI/MCP today — what differs is the **review surface**. Only `.docx`
-has a *native* host-app mechanism (Word revisions); the other three are **journal +
-non-native overlay** because Excel/CSV/PowerPoint have no native track-changes concept.
-The journal is equally authoritative across all four. Legacy `.doc` remains planned
-(it depends on the LibreOffice conversion path).
+**Read the matrix this way:** `.docx`, `.xlsx`, `.csv`, `.pptx`, and `.md` are all built
+and reachable from the CLI today — what differs is the **review surface** and **how edits
+are captured**. Only `.docx` has a *native* host-app mechanism (Word revisions) and the
+richest capture path (live MCP, passive `open`/`seal`, or scripted `track`); the other
+formats review through a **journal + non-native overlay** and are captured today via
+scripted `changex track` (or the `changex-core` API), because Excel/CSV/PowerPoint/Markdown
+have no native track-changes concept. Legacy `.doc` is ingested by converting it to `.docx`
+first (LibreOffice). The journal is equally authoritative across every format.
 
 ### Why "non-native overlay" is not a weaker promise where it appears
 
@@ -42,6 +45,10 @@ can natively resolve the change or whether ChangeX projects the resolution.
 ## 2. Capture-mode fidelity (active vs passive)
 
 The same journal can be produced two ways, and they are **not** equal in provenance.
+(Both the live MCP path and the passive `open`/`seal` path are **docx-only** today; the
+other formats are captured with scripted `changex track`, which records fully-shaped ops
+just like active capture but without the live agent/turn/prompt provenance an MCP session
+supplies.)
 
 | | **Active capture** (MCP) | **Passive capture** (`changex open` / `seal`) |
 |---|---|---|
@@ -114,37 +121,44 @@ A missing baseline file is reported as **"not checked,"** not as a failure — a
 of the baseline is not evidence of tampering. Supply `changex verify <journal>
 --baseline <docx>` (or store `baseline_uri`) to exercise the baseline axis.
 
-## 4. Reserved / unimplemented operations
+## 4. Operation coverage (nothing reserved as of op-schema v0.3)
 
-The op vocabulary in [CHANGEX_FORMAT.md](CHANGEX_FORMAT.md) is deliberately broader
-than what is implemented, so the journal schema is stable as formats land. Today:
+The op vocabulary in [CHANGEX_FORMAT.md](CHANGEX_FORMAT.md) froze early so the journal
+schema would stay stable as adapters landed. **Every kind in the frozen set now has an
+adapter** — the table below is the full implemented vocabulary:
 
 | Op family | Status |
 |-----------|--------|
 | `text.insert` / `text.delete` / `text.replace` (docx) | **implemented** |
 | `node.insert` / `node.delete` (paragraph, docx) | **implemented** |
 | `style.change` (docx) | **implemented** |
+| `format.run` (bold/italic / run props, docx) | **implemented** (native `w:rPrChange`) — *new in v0.1.1* |
+| `node.move` (paragraph move, docx) | **implemented** (tracked delete at source + insert at destination) — *new in v0.1.1* |
 | `cell.set` / `formula.set` / `row.insert` / `row.delete` (xlsx/csv) | **implemented** (non-native overlay) |
 | `slide.insert` / `slide.delete` / `shape.edit` (pptx) | **implemented** (non-native overlay) |
-| `format.run` (bold/italic/run props) | **reserved — not implemented** (CLI rejects) |
-| `node.move` | **reserved — not implemented** (CLI rejects) |
 
-Reserved ops are present in the spec so downstream tooling can be written against the
-final shape, but the active CLI and MCP server **refuse** them rather than silently
-mis-handling them. If you author one in an `ops.json`, you get an explicit rejection.
+**As of op-schema v0.3, no op kinds remain reserved** — `format.run` and `node.move` were
+the last two, and both now have docx adapters (`format.run` renders a native `w:rPrChange`
+run-property revision; `node.move` renders as a tracked delete at the source plus a tracked
+insert at the destination — a Word-acceptable move surrogate). The validator still rejects
+*unknown* kinds — anything outside the frozen set — with an explicit error rather than
+silently mis-handling them, so an unrecognised op in an `ops.json` fails loudly.
 
 ## 5. Summary of the honest contract
 
-- **`.docx`, `.xlsx`, `.csv`, `.pptx`** are all shipping. `.docx` reviews via **native**
-  Word revisions; xlsx/csv/pptx review via a **non-native overlay** (annotations / audit
-  sheet / summary) because those formats have no native track-changes. Legacy `.doc`
-  remains planned (LibreOffice conversion).
+- **`.docx`, `.xlsx`, `.csv`, `.pptx`, `.md`** are all shipping. `.docx` reviews via
+  **native** Word revisions; xlsx/csv/pptx/md review via a **non-native overlay**
+  (annotations / audit sheet / summary slide / HTML redline) because those formats have no
+  native track-changes. Legacy `.doc` is **best-effort** — converted to `.docx` via
+  LibreOffice on ingest.
 - **Active (MCP)** capture gives the strongest provenance; **passive (`open`/`seal`)**
-  gives faithful *what* but **degraded** *who/why* (null agent/turn/prompt).
+  gives faithful *what* but **degraded** *who/why* (null agent/turn/prompt). Both are
+  docx-only today; the other formats are captured with scripted `changex track`.
 - The hash chain is **tamper-evidence**, not adversarial integrity; signing is later.
 - Baseline match is reported separately from chain integrity; a missing baseline is
   "not checked," not a failure.
-- A chunk of the op vocabulary is **reserved and refused**, not silently accepted.
+- **No op kinds remain reserved** as of op-schema v0.3 (`format.run` and `node.move`
+  shipped); the validator still refuses *unknown* kinds rather than silently accepting them.
 
 See also: [ARCHITECTURE.md](ARCHITECTURE.md) (design), [ROADMAP.md](ROADMAP.md)
 (when PLANNED items land), [INTEGRATION.md](INTEGRATION.md) (cross-vendor wiring),

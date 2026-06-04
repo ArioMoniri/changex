@@ -68,6 +68,27 @@ Then add each as **GitHub → repo → Settings → Secrets and variables → Ac
 repository secret** (exact names from the table). Run **Actions → Desktop bundle (Tauri) →
 Run workflow**, and it produces a signed, notarized `.dmg`.
 
+**Verify locally before you push (no secrets leave your machine):**
+
+```bash
+# Confirm the Developer ID Application cert is in your keychain (gives you the identity string):
+security find-identity -v -p codesigning
+#   →  1) ABCD…  "Developer ID Application: Ariorad Moniri (TEAMID)"   ← this is APPLE_SIGNING_IDENTITY
+
+# Sanity-check the app-specific password + Team ID against Apple's notary service.
+# This stores the creds in your LOCAL keychain only (nothing is printed or committed):
+xcrun notarytool store-credentials changex-notary \
+  --apple-id "you@example.com" --team-id "TEAMID" --password "xxxx-xxxx-xxxx-xxxx"
+xcrun notarytool history --keychain-profile changex-notary   # should authenticate cleanly
+```
+
+> 🔒 **Safety — never commit secrets.** Don't check the `.p12`, the certificate password, or the
+> app-specific password into the repo (they belong only in **GitHub → Settings → Secrets**, which
+> GitHub masks in logs). The values above are **placeholders** — substitute your own. If an
+> app-specific password ever leaks, revoke it at <https://account.apple.com> → *Sign-In & Security →
+> App-Specific Passwords* and mint a new one. The signing workflow enables Apple's **hardened
+> runtime** automatically (required for notarization).
+
 > Reminder: this is **optional** — only worth it if you want notarized installers for
 > non-technical users. `changex view` already gives the review UI with no install.
 

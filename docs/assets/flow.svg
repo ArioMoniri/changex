@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 156" width="900" height="156" role="img" aria-label="ChangeX flow: open, edit, seal, review">
+  <title>ChangeX flow: open then edit then seal then review</title>
+  <desc>An animated pipeline diagram. A green pulse travels left to right across four stages — open, edit, seal, review — lighting each one as it passes.</desc>
+  <defs>
+    <linearGradient id="fxbg" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#0b1020"/>
+      <stop offset="1" stop-color="#16203a"/>
+    </linearGradient>
+    <linearGradient id="fxa" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#d97757"/>
+      <stop offset="1" stop-color="#69db8a"/>
+    </linearGradient>
+    <style>
+      .lbl  { font: 700 17px ui-sans-serif,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; fill:#eef2fb; text-anchor:middle; }
+      .sub  { font: 400 12px ui-sans-serif,system-ui,sans-serif; fill:#9fb0cc; text-anchor:middle; }
+      .num  { font: 700 18px ui-sans-serif,system-ui,sans-serif; fill:#cfe8d6; text-anchor:middle; }
+      .node { fill:#1b2742; stroke:#33446b; stroke-width:2; }
+      .ring { fill:none; stroke:url(#fxa); stroke-width:2.5;
+              transform-box: fill-box; transform-origin: 50% 50%;
+              opacity:0; animation: fxRing 6s ease-out infinite; }
+      @keyframes fxRing {
+        0%   { opacity:0;   transform:scale(.9) }
+        4%   { opacity:.95; transform:scale(1.15) }
+        12%  { opacity:0;   transform:scale(1.3) }
+        100% { opacity:0;   transform:scale(.9) }
+      }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="156" rx="18" fill="url(#fxbg)"/>
+  <rect x="0.75" y="0.75" width="898.5" height="154.5" rx="17.25" fill="none" stroke="#26324f"/>
+
+  <line x1="130" y1="56" x2="820" y2="56" stroke="#2a3a5e" stroke-width="3"/>
+
+  <circle r="6" fill="#69db8a" cy="56">
+    <animate attributeName="cx" values="130;820;820;130" keyTimes="0;0.5;0.55;1" dur="6s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0;1;1;1;0;0" keyTimes="0;0.04;0.46;0.5;0.56;1" dur="6s" repeatCount="indefinite"/>
+  </circle>
+
+  <g>
+    <circle class="ring" cx="130" cy="56" r="26" style="animation-delay:0s"/>
+    <circle class="node" cx="130" cy="56" r="22"/>
+    <text class="num" x="130" y="62">1</text>
+    <text class="lbl" x="130" y="104">open</text>
+    <text class="sub" x="130" y="122">snapshot original</text>
+  </g>
+  <g>
+    <circle class="ring" cx="360" cy="56" r="26" style="animation-delay:1s"/>
+    <circle class="node" cx="360" cy="56" r="22"/>
+    <text class="num" x="360" y="62">2</text>
+    <text class="lbl" x="360" y="104">edit</text>
+    <text class="sub" x="360" y="122">any model or human</text>
+  </g>
+  <g>
+    <circle class="ring" cx="590" cy="56" r="26" style="animation-delay:2s"/>
+    <circle class="node" cx="590" cy="56" r="22"/>
+    <text class="num" x="590" y="62">3</text>
+    <text class="lbl" x="590" y="104">seal</text>
+    <text class="sub" x="590" y="122">rebuild the changes</text>
+  </g>
+  <g>
+    <circle class="ring" cx="820" cy="56" r="26" style="animation-delay:3s"/>
+    <circle class="node" cx="820" cy="56" r="22"/>
+    <text class="num" x="820" y="62">4</text>
+    <text class="lbl" x="820" y="104">review</text>
+    <text class="sub" x="820" y="122">accept / reject</text>
+  </g>
+</svg>

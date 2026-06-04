@@ -123,8 +123,11 @@ op payload). `node_id`s are opaque and edit-invariant (docx paragraphs reuse
 Word's native `w14:paraId`); discover them from a prior `review` or the MCP
 `get_outline` tool.
 
-`format.run` and `node.move`, and all xlsx/pptx/csv ops, are **reserved and not
-yet implemented** — the CLI rejects them.
+`format.run` and `node.move` (docx run-format + paragraph move) and the
+xlsx/csv/pptx ops (`cell.set`, `formula.set`, `row.insert`, `row.delete`,
+`slide.insert`, `slide.delete`, `shape.edit`) are all **implemented** as of
+op-schema v0.3 — **no op kinds remain reserved**. The validator rejects only
+*unknown* kinds (anything outside the frozen set).
 
 ### Example `ops.json`
 

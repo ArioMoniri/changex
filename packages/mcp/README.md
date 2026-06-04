@@ -282,9 +282,10 @@ get_changes({ "handle": "ab12…" })
 
 ## Notes / limits
 
-- **docx only** in v0.1 (the frozen op set: text insert/delete/replace, paragraph
-  insert/delete, style change). xlsx/pptx/csv and `format.run` / `node.move` are
-  reserved for later versions.
+- **docx only** — the MCP server opens `.docx` files. Within docx the **full op set** is
+  available: text insert/delete/replace, paragraph insert/delete, style change, and (since
+  v0.1.1) `format.run` (run-property revision) and `node.move` (paragraph move). The other
+  formats (xlsx/csv/pptx/md) are tracked via the `changex track` CLI rather than this server.
 - **Single-session per document.** Opening the same file twice in one server is
   refused rather than left undefined.
 - The hash chain is **tamper-evidence** for accidental corruption / naive tampering,
