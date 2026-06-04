@@ -42,3 +42,6 @@ docs/assets/_render/
 
 # claude-flow runtime data (hooks/daemon write here; not part of the project)
 .claude-flow/
+packages/viewer/src-tauri/icons/64x64.png
+packages/viewer/src-tauri/icons/android/
+packages/viewer/src-tauri/icons/ios/

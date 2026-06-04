@@ -77,6 +77,9 @@ jobs:
           # Required for tauri-action to upload the built bundles to the GitHub release
           # (a tag/release run sets tagName; without this the upload fails: "GITHUB_TOKEN is required").
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # --- updater signing (signs the update artifacts + generates latest.json) ---
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # --- macOS signing + notarization (used only if APPLE_CERTIFICATE is set) ---
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -89,3 +92,27 @@ jobs:
           tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
           releaseName: ${{ github.ref_type == 'tag' && format('ChangeX Viewer {0}', github.ref_name) || '' }}
           releaseDraft: true
+
+  # Re-upload version-less installer copies so the README's
+  # /releases/latest/download/<stable-name> buttons always fetch the newest build.
+  aliases:
+    needs: bundle
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish stable download aliases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          cd "$(mktemp -d)"
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" \
+            -p '*aarch64.dmg' -p '*x64_en-US.msi' -p '*amd64.AppImage'
+          cp *aarch64.dmg    ChangeX-Viewer-macos.dmg
+          cp *x64_en-US.msi  ChangeX-Viewer-windows.msi
+          cp *amd64.AppImage ChangeX-Viewer-linux.AppImage
+          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" \
+            ChangeX-Viewer-macos.dmg ChangeX-Viewer-windows.msi ChangeX-Viewer-linux.AppImage --clobber

@@ -10,6 +10,7 @@ import {
 } from "./api";
 import { ProvenanceTimeline } from "./components/ProvenanceTimeline";
 import { RedlinePanel } from "./components/RedlinePanel";
+import { UpdatesPage } from "./components/UpdatesPage";
 
 export default function App() {
   const [journal, setJournal] = useState<Journal | null>(null);
@@ -18,6 +19,7 @@ export default function App() {
   const [verify, setVerify] = useState<CliResult | null>(null);
   const [selectedSeq, setSelectedSeq] = useState<number | null>(null);
   const [error, setError] = useState<string>("");
+  const [showUpdates, setShowUpdates] = useState(false);
 
   const tauri = isTauri();
 
@@ -92,6 +94,11 @@ export default function App() {
           <button className="ghost" onClick={openSample}>
             Load sample
           </button>
+          {tauri && (
+            <button className="ghost" onClick={() => setShowUpdates(true)} title="Check for updates">
+              Updates
+            </button>
+          )}
         </div>
       </header>
 
@@ -144,6 +151,8 @@ export default function App() {
           </button>
         </div>
       )}
+
+      {tauri && showUpdates && <UpdatesPage onClose={() => setShowUpdates(false)} />}
     </div>
   );
 }

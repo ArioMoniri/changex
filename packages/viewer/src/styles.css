@@ -199,3 +199,29 @@ button.ghost { background: transparent; border: 1px solid var(--border); color: 
 .empty { color: var(--muted); padding: 1rem; }
 
 code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+/* Updates page (Tauri auto-updater) */
+.updates-overlay {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(8, 10, 14, 0.62); backdrop-filter: blur(3px);
+}
+.updates-card {
+  width: min(540px, 92vw);
+  background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+  padding: 1.25rem 1.4rem; box-shadow: 0 18px 50px rgba(0,0,0,.5);
+}
+.updates-head { display: flex; align-items: center; justify-content: space-between; }
+.updates-head h2 { margin: 0; font-size: 1.15rem; }
+.updates-current { color: var(--muted); margin: .35rem 0 1rem; }
+.updates-line { margin: .5rem 0; }
+.updates-line.good { color: var(--good); }
+.updates-line.bad { color: var(--bad); }
+.updates-notes {
+  max-height: 180px; overflow: auto; white-space: pre-wrap;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: .6rem .7rem; color: var(--muted); font-size: .85rem; margin: .5rem 0 .9rem;
+}
+.updates-bar { height: 8px; background: var(--panel-2); border-radius: 6px; overflow: hidden; margin-top: .4rem; }
+.updates-bar-fill { height: 100%; background: var(--accent); transition: width .2s ease; }
+.updates-foot { margin-top: 1rem; display: flex; justify-content: flex-end; }

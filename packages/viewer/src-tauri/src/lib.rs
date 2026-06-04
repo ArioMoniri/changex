@@ -39,13 +39,49 @@ pub struct CliResult {
     pub stderr: String,
 }
 
-/// Resolve the `changex` executable.
+/// Resolve the `changex` executable, robust to GUI launches with a minimal PATH.
 ///
-/// Order: explicit `CHANGEX_BIN` env override, then `changex` on PATH.
-/// Bundling the Python core as a true Tauri sidecar binary is a packaging task
-/// (see README); for the scaffold we rely on the dev's installed CLI.
-fn changex_bin() -> String {
-    std::env::var("CHANGEX_BIN").unwrap_or_else(|_| "changex".to_string())
+/// A Finder-launched `.app` inherits only a bare PATH (`/usr/bin:/bin:…`), so a plain
+/// `Command::new("changex")` fails even when the CLI is installed in Homebrew / uv /
+/// pipx. Resolution order: `CHANGEX_BIN` override → common install dirs → the user's
+/// **login-shell** PATH (`$SHELL -lc 'command -v changex'`, which sources their profile
+/// and sees Homebrew/uv/pyenv) → bare `changex`. Returns `None` only when nothing works.
+fn changex_bin() -> Option<String> {
+    if let Ok(p) = std::env::var("CHANGEX_BIN") {
+        if !p.trim().is_empty() {
+            return Some(p);
+        }
+    }
+    let home = std::env::var("HOME").unwrap_or_default();
+    let candidates = [
+        "/opt/homebrew/bin/changex".to_string(),
+        "/usr/local/bin/changex".to_string(),
+        format!("{home}/.local/bin/changex"),
+        format!("{home}/.cargo/bin/changex"),
+    ];
+    for c in candidates {
+        if Path::new(&c).is_file() {
+            return Some(c);
+        }
+    }
+    // Ask a login shell — it sources the user's profile and yields their real PATH.
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+    if let Ok(out) = Command::new(shell)
+        .args(["-lc", "command -v changex"])
+        .output()
+    {
+        if out.status.success() {
+            let p = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if !p.is_empty() && Path::new(&p).exists() {
+                return Some(p);
+            }
+        }
+    }
+    // Last resort: bare name (resolves when the app was launched from a terminal).
+    if Command::new("changex").arg("--version").output().is_ok() {
+        return Some("changex".to_string());
+    }
+    None
 }
 
 /// Reject anything that is not a plain existing `.changex` / `.jsonl` file.
@@ -91,10 +127,15 @@ fn load_journal(path: String) -> Result<Journal, String> {
 
 /// Run a `changex` subcommand against `path` and capture stdout/stderr.
 fn run_changex(args: &[&str]) -> Result<CliResult, String> {
-    let output = Command::new(changex_bin())
+    let bin = changex_bin().ok_or_else(|| {
+        "changex CLI not found. Install it — `uv tool install changex` (or `pip install changex`) \
+         — then relaunch the app. Searched PATH, /opt/homebrew/bin, /usr/local/bin and ~/.local/bin."
+            .to_string()
+    })?;
+    let output = Command::new(&bin)
         .args(args)
         .output()
-        .map_err(|e| format!("failed to launch changex CLI ({e}); is changex-core installed?"))?;
+        .map_err(|e| format!("failed to launch changex ({bin}): {e}"))?;
     Ok(CliResult {
         ok: output.status.success(),
         stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
@@ -121,6 +162,8 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             load_journal,
             render_review,
