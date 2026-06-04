@@ -52,18 +52,34 @@ claude mcp add -s user changex -- changex-mcp
 That's it — every edit lands as a **real Word tracked change** you can accept/reject, with full provenance. No MCP, a local/offline model, or a human editing by hand? → **[Without tools](#-how-it-works)** below.
 
 <details>
-<summary><b>🔄 Updating &amp; avoiding duplicate MCP entries</b></summary>
+<summary><b>🔄 Updating — what to update, and how</b></summary>
 
 <br>
 
-- **Upgrade the tool:** `uv tool upgrade changex` · `pipx upgrade changex` · `pip install -U changex`. The `changex-mcp` binary updates **in place** — your MCP registration keeps working, so there's **nothing to re-add**.
-- **One entry, no duplicates:** always register with **`-s user`** (Quickstart step 2). Running `claude mcp add changex …` *without* `-s user` adds a **separate per-directory entry**, so doing it in several folders piles up duplicates. To reset to a single clean entry:
+**There's only one thing to update: the `changex` package.** The MCP server (`changex-mcp`) and every CLI command ship *inside* it — you never update those separately.
 
-  ```bash
-  claude mcp remove changex                    # repeat in each folder you added it to
-  claude mcp add -s user changex -- changex-mcp
-  claude mcp list                              # changex should show ✓ Connected
-  ```
+**1. Update the package — use the same installer you installed with:**
+
+| If you installed with… | …update with |
+|---|---|
+| `uv tool install changex` | `uv tool upgrade changex` |
+| `pipx install changex` | `pipx upgrade changex` |
+| `pip install changex` | `pip install -U changex` |
+| `uvx changex` *(zero-install)* | nothing — `uvx` always runs the latest |
+
+Confirm it worked: **`changex --version`**.
+
+**2. The MCP server updates automatically.** Because `changex-mcp` is part of the package, step 1 upgrades it too. Your Claude registration is just a pointer to the `changex-mcp` binary, so **do *not* re-run `claude mcp add` to "update" it** — that doesn't update anything, it only creates duplicate entries. It picks up the new version next time it launches.
+
+> Registered the MCP as `uvx changex-mcp` (zero-install) instead of the binary? That form is pinned to a cached version — get the newest with `uvx changex-mcp@latest`, or switch to the installed binary (below).
+
+**Only touch `claude mcp` to (re)connect or fix duplicates.** Register **once** with `-s user` so it works in every folder and never duplicates. If you already added it in several folders without `-s user`, reset to a single clean entry:
+
+```bash
+claude mcp remove changex                    # repeat in each folder you added it to
+claude mcp add -s user changex -- changex-mcp
+claude mcp list                              # changex → ✓ Connected
+```
 
 </details>
 
