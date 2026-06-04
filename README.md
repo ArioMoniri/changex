@@ -120,6 +120,8 @@ With the MCP server connected (Quickstart step 2), just ask in plain language. T
 
 So if `claude mcp list` says `✓ Connected` but a chat says *"I can't find changex / upload the file,"* you're talking to a **different Claude than the one you configured** — set it up for that app too, see **[🔌 Set up your app](#-set-up-your-app)** below. [Why local-only →](docs/LOCAL-ACCESS.md)
 
+**📎 Easiest in Claude Desktop — just upload the doc.** Drag your `.docx` into the chat and say *"use changex to tighten the intro and fix the heading, then give me the tracked file."* The upload lands where the changex MCP can read it (no Full Disk Access needed — it sidesteps the macOS privacy wall entirely). changex saves the **tracked `.docx` + `.changex`** and Claude hands them back as downloads.
+
 </details>
 
 <details>

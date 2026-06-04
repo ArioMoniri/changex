@@ -13,7 +13,6 @@ reverted op's revision is therefore genuinely absent from the output file.
 
 from __future__ import annotations
 
-from typing import Optional
 
 from changex_core.adapters.docx_adapter import DEFAULT_AUTHOR, DocxAdapter
 from changex_core.journal.journal import Journal

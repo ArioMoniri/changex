@@ -1,0 +1,73 @@
+## Builds the ChangeX Quick Look helper app (host app + .changex preview extension) and
+## attaches a .dmg to the release. Signs + notarizes when the Apple secrets are present
+## (same secrets as the Tauri desktop bundle); otherwise produces an UNSIGNED .dmg.
+##
+## Trigger: a v* tag (attaches to the release) or manual dispatch (build-only).
+
+name: Quick Look app (macOS)
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  quicklook:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Build (signed if APPLE_SIGNING_IDENTITY is set)
+        working-directory: packages/quicklook
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          set -euo pipefail
+          if [ -n "${APPLE_CERTIFICATE:-}" ]; then
+            KC="$RUNNER_TEMP/cx.keychain-db"; PW="$(uuidgen)"
+            security create-keychain -p "$PW" "$KC"
+            security set-keychain-settings -lut 21600 "$KC"
+            security unlock-keychain -p "$PW" "$KC"
+            echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+            security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+            security list-keychains -d user -s "$KC" $(security list-keychains -d user | sed s/\"//g)
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$PW" "$KC" >/dev/null
+            SIGN_ID="$APPLE_SIGNING_IDENTITY" ./build.sh
+          else
+            ./build.sh
+          fi
+
+      - name: Notarize + staple (if APPLE_ID is set)
+        working-directory: packages/quicklook
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          hdiutil create -volname "ChangeX Quick Look" \
+            -srcfolder build/Release/ChangeXQuickLook.app -ov -format UDZO ChangeX-QuickLook.dmg
+          if [ -n "${APPLE_ID:-}" ]; then
+            xcrun notarytool submit ChangeX-QuickLook.dmg \
+              --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
+            xcrun stapler staple ChangeX-QuickLook.dmg || true
+          fi
+
+      - name: Attach to the release (tag runs only)
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.ref_name }}" -R "$GITHUB_REPOSITORY" packages/quicklook/ChangeX-QuickLook.dmg --clobber
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ChangeX-QuickLook-dmg
+          path: packages/quicklook/ChangeX-QuickLook.dmg

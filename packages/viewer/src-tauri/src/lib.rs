@@ -157,6 +157,16 @@ fn verify_journal(path: String) -> Result<CliResult, String> {
     run_changex(&["verify", &path])
 }
 
+/// Manage the macOS Quick Look preview for `.changex` files via the CLI controller
+/// (`changex quicklook status|enable|disable`).
+#[tauri::command]
+fn quicklook(action: String) -> Result<CliResult, String> {
+    match action.as_str() {
+        "status" | "enable" | "disable" => run_changex(&["quicklook", &action]),
+        _ => Err("invalid quicklook action".into()),
+    }
+}
+
 /// Open the macOS **Full Disk Access** settings pane so the user can grant this app (and
 /// the changex sidecar it spawns) access to ~/Downloads/~/Documents/~/Desktop. macOS only.
 #[tauri::command]
@@ -185,6 +195,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             load_journal,
             render_review,
+            quicklook,
             open_security_settings,
             verify_journal
         ])

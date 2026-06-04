@@ -26,6 +26,7 @@ export function UpdatesPage({ onClose }: { onClose: () => void }) {
   const [version, setVersion] = useState<string>("…");
   const [phase, setPhase] = useState<Phase>({ k: "checking" });
   const [pending, setPending] = useState<PendingUpdate | null>(null);
+  const [qlMsg, setQlMsg] = useState<string>("");
 
   useEffect(() => {
     import("@tauri-apps/api/app")
@@ -33,6 +34,20 @@ export function UpdatesPage({ onClose }: { onClose: () => void }) {
       .then(setVersion)
       .catch(() => setVersion("?"));
   }, []);
+
+  // Quick Look (Finder preview) control — delegates to `changex quicklook`.
+  const setQuickLook = useCallback(async (action: "status" | "enable" | "disable") => {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const res = (await invoke("quicklook", { action })) as { stdout: string; stderr: string };
+      setQlMsg((res.stdout + res.stderr).trim());
+    } catch (e) {
+      setQlMsg(String(e));
+    }
+  }, []);
+  useEffect(() => {
+    setQuickLook("status");
+  }, [setQuickLook]);
 
   const check = useCallback(async () => {
     setPhase({ k: "checking" });
@@ -82,7 +97,7 @@ export function UpdatesPage({ onClose }: { onClose: () => void }) {
     <div className="updates-overlay" role="dialog" aria-label="Updates">
       <div className="updates-card">
         <div className="updates-head">
-          <h2>Updates</h2>
+          <h2>Settings</h2>
           <button className="ghost" onClick={onClose}>
             Close
           </button>
@@ -119,13 +134,24 @@ export function UpdatesPage({ onClose }: { onClose: () => void }) {
         )}
         {phase.k === "error" && <p className="updates-line bad">Update failed: {phase.message}</p>}
 
+        <hr className="updates-rule" />
+
+        <h3 className="updates-h3">Quick Look — Finder preview for .changex</h3>
+        {qlMsg && <pre className="updates-notes">{qlMsg}</pre>}
+        <div className="updates-ql-row">
+          <button onClick={() => setQuickLook("enable")}>Enable</button>
+          <button className="ghost" onClick={() => setQuickLook("disable")}>
+            Disable
+          </button>
+        </div>
+
         <div className="updates-foot">
           <button
             className="ghost"
             onClick={check}
             disabled={phase.k === "checking" || phase.k === "downloading"}
           >
-            Check again
+            Check for updates
           </button>
         </div>
       </div>

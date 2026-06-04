@@ -111,8 +111,12 @@ export default function App() {
             </button>
           )}
           {tauri && (
-            <button className="ghost" onClick={() => setShowUpdates(true)} title="Check for updates">
-              Updates
+            <button
+              className="ghost"
+              onClick={() => setShowUpdates(true)}
+              title="Updates & Quick Look settings"
+            >
+              Settings
             </button>
           )}
         </div>
