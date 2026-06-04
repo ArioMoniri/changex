@@ -35,13 +35,16 @@ jobs:
           COMMON=(-project ChangeXQuickLook.xcodeproj -scheme ChangeXQuickLook -configuration Release SYMROOT=build)
           if [ -n "${APPLE_CERTIFICATE:-}" ]; then
             KC="$RUNNER_TEMP/cx.keychain-db"; KP="$(uuidgen)"
-            echo -n "$APPLE_CERTIFICATE" | base64 --decode -o "$RUNNER_TEMP/cert.p12"
+            echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
             security create-keychain -p "$KP" "$KC"
-            security set-keychain-settings -lut 21600 "$KC"
+            security default-keychain -s "$KC"
             security unlock-keychain -p "$KP" "$KC"
-            security import "$RUNNER_TEMP/cert.p12" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KC"
-            security set-key-partition-list -S apple-tool:,apple: -k "$KP" "$KC" >/dev/null
-            security list-keychain -d user -s "$KC" login.keychain-db
+            security set-keychain-settings -lut 21600 "$KC"
+            security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$APPLE_CERTIFICATE_PASSWORD" \
+              -T /usr/bin/codesign -T /usr/bin/security
+            security set-key-partition-list -S apple-tool:,apple: -s -k "$KP" "$KC" >/dev/null
+            security list-keychains -d user -s "$KC" login.keychain-db
+            echo "codesigning identities in keychain:"; security find-identity -v -p codesigning "$KC" || true
             xcodebuild "${COMMON[@]}" \
               CODE_SIGN_STYLE=Manual \
               CODE_SIGN_IDENTITY="$APPLE_SIGNING_IDENTITY" \
