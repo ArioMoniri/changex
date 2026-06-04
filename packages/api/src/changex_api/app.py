@@ -30,7 +30,6 @@ from typing import Any
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
 from fastapi.responses import HTMLResponse
 
-from changex_core import __version__ as _CORE_VERSION
 from changex_core.journal.journal import Journal
 from changex_core.paths import UnsafePathError, safe_path
 from changex_core.passive import open_passive, seal_passive
