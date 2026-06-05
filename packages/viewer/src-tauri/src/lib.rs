@@ -167,6 +167,76 @@ fn quicklook(action: String) -> Result<CliResult, String> {
     }
 }
 
+/// Install + enable the Quick Look helper from *within* the Viewer (macOS), so the user
+/// never has to download/manage a second app. If the helper isn't already in `/Applications`
+/// or `~/Applications`, it's fetched (signed + notarized) from the latest GitHub release and
+/// placed in `~/Applications` (no admin prompt), registered with Launch Services, and enabled.
+/// The helper is a background agent (no Dock icon), so this is invisible.
+#[tauri::command]
+fn install_quicklook() -> Result<CliResult, String> {
+    #[cfg(not(target_os = "macos"))]
+    {
+        Err("Quick Look is macOS-only.".into())
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let home = std::env::var("HOME").map_err(|_| "no HOME".to_string())?;
+        let dest_dir = format!("{home}/Applications");
+        let user_app = format!("{dest_dir}/ChangeXQuickLook.app");
+        let sys_app = "/Applications/ChangeXQuickLook.app";
+
+        // Already installed somewhere → just (re)enable.
+        if Path::new(&user_app).exists() || Path::new(sys_app).exists() {
+            return quicklook("enable".into());
+        }
+
+        std::fs::create_dir_all(&dest_dir).map_err(|e| format!("create ~/Applications: {e}"))?;
+        let tmp_dmg = std::env::temp_dir().join("ChangeX-QuickLook.dmg");
+        let mnt = std::env::temp_dir().join("cxql_mnt");
+        let url = "https://github.com/ArioMoniri/changex/releases/latest/download/ChangeX-QuickLook.dmg";
+
+        let dl = Command::new("curl")
+            .args(["-fsSL", url, "-o"])
+            .arg(&tmp_dmg)
+            .status()
+            .map_err(|e| format!("download failed to start: {e}"))?;
+        if !dl.success() {
+            return Err("could not download ChangeX-QuickLook.dmg from the latest release".into());
+        }
+
+        let _ = std::fs::create_dir_all(&mnt);
+        let attach = Command::new("hdiutil")
+            .arg("attach")
+            .arg(&tmp_dmg)
+            .args(["-nobrowse", "-mountpoint"])
+            .arg(&mnt)
+            .status()
+            .map_err(|e| format!("hdiutil attach failed: {e}"))?;
+        if !attach.success() {
+            return Err("could not mount the downloaded disk image".into());
+        }
+
+        let copy = Command::new("cp")
+            .arg("-R")
+            .arg(mnt.join("ChangeXQuickLook.app"))
+            .arg(&dest_dir)
+            .status();
+        let _ = Command::new("hdiutil").arg("detach").arg(&mnt).arg("-quiet").status();
+        copy.map_err(|e| format!("copy failed: {e}"))
+            .and_then(|s| if s.success() { Ok(()) } else { Err("copy failed".to_string()) })?;
+
+        // Self-installed (not browser-downloaded), so clearing quarantine is safe; then register.
+        let _ = Command::new("xattr").args(["-dr", "com.apple.quarantine"]).arg(&user_app).status();
+        let lsregister = "/System/Library/Frameworks/CoreServices.framework/Frameworks/\
+                          LaunchServices.framework/Support/lsregister";
+        let _ = Command::new(lsregister).arg("-f").arg(&user_app).status();
+        // Launch once (background agent, no Dock icon) so macOS discovers the extension.
+        let _ = Command::new("open").arg(&user_app).status();
+
+        quicklook("enable".into())
+    }
+}
+
 /// Open the macOS **Full Disk Access** settings pane so the user can grant this app (and
 /// the changex sidecar it spawns) access to ~/Downloads/~/Documents/~/Desktop. macOS only.
 #[tauri::command]
@@ -196,6 +266,7 @@ pub fn run() {
             load_journal,
             render_review,
             quicklook,
+            install_quicklook,
             open_security_settings,
             verify_journal
         ])

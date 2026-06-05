@@ -229,4 +229,6 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 /* Settings panel — Quick Look section */
 .updates-rule { border: none; border-top: 1px solid var(--border); margin: 1.1rem 0 .8rem; }
 .updates-h3 { font-size: .98rem; margin: 0 0 .5rem; }
+.updates-sub { font-size: .82rem; color: var(--muted, #86868b); margin: 0 0 .7rem; line-height: 1.45; }
+.updates-sub code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; }
 .updates-ql-row { display: flex; gap: 8px; }

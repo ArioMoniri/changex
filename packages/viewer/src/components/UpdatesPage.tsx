@@ -45,6 +45,20 @@ export function UpdatesPage({ onClose }: { onClose: () => void }) {
       setQlMsg(String(e));
     }
   }, []);
+
+  // Enable from *within* the Viewer: installs the (signed, notarized) Quick Look helper
+  // from the latest release if it isn't present yet, then turns the preview on. One app.
+  const enableQuickLook = useCallback(async () => {
+    setQlMsg("Setting up Quick Look…");
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const res = (await invoke("install_quicklook")) as { stdout: string; stderr: string };
+      setQlMsg((res.stdout + res.stderr).trim() || "Quick Look enabled.");
+    } catch (e) {
+      setQlMsg(String(e));
+    }
+  }, []);
+
   useEffect(() => {
     setQuickLook("status");
   }, [setQuickLook]);
@@ -136,10 +150,14 @@ export function UpdatesPage({ onClose }: { onClose: () => void }) {
 
         <hr className="updates-rule" />
 
-        <h3 className="updates-h3">Quick Look — Finder preview for .changex</h3>
+        <h3 className="updates-h3">Quick Look — Finder preview for .changex & code</h3>
+        <p className="updates-sub">
+          Press Space on a <code>.changex</code> file (or any source file) in Finder to preview it.
+          Enable sets up the helper for you — no separate download.
+        </p>
         {qlMsg && <pre className="updates-notes">{qlMsg}</pre>}
         <div className="updates-ql-row">
-          <button onClick={() => setQuickLook("enable")}>Enable</button>
+          <button onClick={enableQuickLook}>Enable</button>
           <button className="ghost" onClick={() => setQuickLook("disable")}>
             Disable
           </button>
