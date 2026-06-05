@@ -69,7 +69,7 @@ jobs:
         shell: pwsh
         run: |
           Set-Content -Path sample.py -Value "import math`r`nprint(math.pi)"
-          $html = changex preview sample.py
+          $html = (changex preview sample.py | Out-String)
           if ($html -notmatch 'class="highlight"') { throw "code preview not highlighted on Windows" }
           Write-Host "OK: changex preview works on Windows"
       - name: Build the Explorer preview handler (.NET Framework 4.8)
