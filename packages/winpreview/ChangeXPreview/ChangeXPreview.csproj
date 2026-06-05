@@ -15,7 +15,7 @@
     <RootNamespace>ChangeXPreview</RootNamespace>
     <!-- .NET Framework COM registration is done with regasm /codebase (see install.ps1),
          not .NET Core's comhost. -->
-    <Version>0.1.11</Version>
+    <Version>0.1.12</Version>
     <Company>Ariorad Moniri</Company>
     <Product>ChangeX Preview Handler</Product>
     <Platforms>x64</Platforms>

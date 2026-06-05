@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "changex-mcp"
-version = "0.1.11"
+version = "0.1.12"
 description = "ChangeX MCP server: edit a .docx through an MCP client and get native Word revisions plus a portable .changex provenance journal."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -24,7 +24,7 @@ dependencies = [
     "mcp[cli]>=1.8.0",
     # The ChangeX spine: model, journal, docx adapter, render. Pinned for the
     # standalone `uvx changex-mcp` path; resolved from the workspace for dev.
-    "changex-core>=0.1.11",
+    "changex-core>=0.1.12",
 ]
 
 [project.optional-dependencies]

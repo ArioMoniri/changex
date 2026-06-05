@@ -67,6 +67,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 24),
         ])
         window.contentView = content
+        // No Dock icon (agent app), so float the window above others and grab focus when
+        // it's opened, otherwise it could open hidden behind everything with no way back.
+        window.level = .floating
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
@@ -189,5 +192,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate
-app.setActivationPolicy(.regular)
+// Agent app: never show a Dock icon (or a menu bar). The Quick Look extension does the
+// actual previewing; this host only needs to exist so macOS registers it. Registration on
+// install is therefore silent, and opening it for the enable/disable UI adds no Dock clutter.
+app.setActivationPolicy(.accessory)
 app.run()
