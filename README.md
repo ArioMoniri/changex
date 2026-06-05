@@ -293,8 +293,14 @@ Add to `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global) — Cline u
 ```bash
 changex review report.changex --doc report.tracked.docx --out review.html   # 📄 inline in the doc's outline
 changex view   report.changex --doc report.tracked.docx                     # 🌐 live local page (accept/reject)
+changex preview report.changex --out preview.html                           # 🔎 self-contained HTML (any platform)
 #  …or just open report.tracked.docx in Word — real native track changes 🖊️
 ```
+
+`changex preview` renders **any** file to a self-contained HTML page — a `.changex` journal
+as a redline, or a **source-code/text file with syntax highlighting** (Pygments). It's the
+engine behind the macOS Quick Look extension and the Windows preview handler below, so a
+double-click preview looks the same everywhere.
 
 💡 Paths with spaces need quotes: `changex open "My Report.docx"`.
 
@@ -413,6 +419,19 @@ ChangeX ships an optional **[Tauri](https://tauri.app)** desktop viewer — a sm
 </p>
 
 Installers attach to **[tagged releases](https://github.com/ArioMoniri/changex/releases)**: macOS `.dmg` is **signed + notarized**; Windows `.msi` and Linux `.AppImage`/`.deb` are unsigned. Build/sign details: [docs/CI-AND-SECRETS.md](docs/CI-AND-SECRETS.md).
+
+</details>
+
+<details>
+<summary>🔎 <strong>Finder / Explorer preview — press Space to see the redline</strong></summary>
+
+Preview a `.changex` journal (or any source file, syntax-highlighted) right from your file
+manager — no app to open.
+
+- **macOS — Quick Look.** Grab `ChangeX-QuickLook.dmg` from the [latest release](https://github.com/ArioMoniri/changex/releases/latest) (signed + notarized), or just open **ChangeX Viewer ▸ Settings ▸ Enable** and it installs + turns on the preview for you. Then select a `.changex` (or `.py`, `.ts`, `.json`, …) in Finder and press **Space**. The helper is a background agent — **no Dock icon**. Manage it any time with `changex quicklook status|enable|disable`.
+- **Windows — Explorer preview pane.** Grab `ChangeX-Windows-Preview.zip` from the latest release and run `install.ps1` (it registers a preview handler that shells out to `changex preview`). Select a file and open the preview pane (**Alt+P**). Requires `pip install "changex[preview]"`.
+
+Both reuse the same `changex preview` engine, so the preview looks identical across platforms.
 
 </details>
 
