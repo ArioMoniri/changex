@@ -1,26 +1,28 @@
-import Foundation
+import AppKit
 
-/// Renders a Quick Look preview as a self-contained HTML page.
+/// Builds the Quick Look preview as a native `NSAttributedString` (rendered by an in-process
+/// `NSTextView`). We deliberately do NOT use WKWebView: a WKWebView inside the sandboxed
+/// Quick Look host renders blank (its WebContent helper can't paint there). Native text always
+/// renders, in both light and dark panels (semantic `NSColor`s adapt automatically).
 ///
 /// Two modes, chosen by the file:
-///   * `.changex` journals  → a redline (deleted/inserted text + attributed agent),
-///     the same story `changex review` tells.
-///   * any other file       → its source, syntax-highlighted with a bundled copy of
-///     highlight.js (auto-detection, or the language hinted by the file extension).
-///
-/// Everything (CSS + JS) is inlined into the returned HTML so the WKWebView never
-/// needs network or external resource access — important inside the App Sandbox.
+///   * `.changex` journal → a redline (deleted = red strikethrough, inserted = green) + the
+///     attributed agent, the same story `changex review` tells;
+///   * any other file → its source, syntax-highlighted with a small language-agnostic tokenizer.
 enum ChangexRenderer {
-    /// `hljs` is the contents of the bundled highlight.min.js (nil → no colouring).
-    static func html(for url: URL, data: Data, hljs: String?) -> String {
+    static func attributed(for url: URL, data: Data) -> NSAttributedString {
         let ext = url.pathExtension.lowercased()
         if ext == "changex" || looksLikeChangex(data) {
-            return changexHTML(from: data)
+            return changexAttributed(from: data)
         }
-        return codeHTML(from: data, ext: ext, hljs: hljs)
+        return codeAttributed(from: data)
     }
 
-    // MARK: - .changex redline -------------------------------------------------
+    // MARK: - fonts
+
+    private static let body = NSFont.systemFont(ofSize: 13)
+    private static let monoBody = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+    private static let monoSmall = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
 
     private static func looksLikeChangex(_ data: Data) -> Bool {
         guard let head = String(data: data.prefix(400), encoding: .utf8) else { return false }
@@ -28,172 +30,158 @@ enum ChangexRenderer {
             || head.contains("\"op_schema_version\"")
     }
 
-    private static func changexHTML(from data: Data) -> String {
-        let text = String(data: data, encoding: .utf8) ?? ""
-        let lines = text
-            .split(separator: "\n", omittingEmptySubsequences: true)
-            .map(String.init)
+    // MARK: - .changex redline
+
+    private static func changexAttributed(from data: Data) -> NSAttributedString {
+        let text = String(decoding: data, as: UTF8.self)
+        let lines = text.split(separator: "\n").map(String.init)
             .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
 
-        guard let first = lines.first,
-              let headerData = first.data(using: .utf8),
-              let header = (try? JSONSerialization.jsonObject(with: headerData)) as? [String: Any]
-        else {
-            return wrap("<p class=\"empty\">Not a readable .changex journal.</p>")
-        }
+        guard let first = lines.first, let hd = first.data(using: .utf8),
+              let header = (try? JSONSerialization.jsonObject(with: hd)) as? [String: Any]
+        else { return plainText("Not a readable .changex journal.") }
 
         let doc = header["doc"] as? [String: Any]
         let filename = doc?["filename"] as? String ?? "(document)"
         let format = doc?["format"] as? String ?? "?"
 
-        var rows = ""
+        let out = NSMutableAttributedString()
+        out.append(run(filename + "\n", NSFont.boldSystemFont(ofSize: 17), .labelColor))
+
+        let para = NSMutableParagraphStyle()
+        para.paragraphSpacing = 7
+        para.lineSpacing = 1.5
+
+        let rows = NSMutableAttributedString()
         var count = 0
         for line in lines.dropFirst() {
             guard let d = line.data(using: .utf8),
                   let ev = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any],
-                  let op = ev["op"] as? [String: Any]
-            else { continue }
+                  let op = ev["op"] as? [String: Any] else { continue }
             count += 1
             let kind = (op["kind"] as? String) ?? "?"
-            let prov = ev["provenance"] as? [String: Any]
-            let agent = (prov?["agent"] as? String) ?? "—"
+            let agent = ((ev["provenance"] as? [String: Any])?["agent"] as? String) ?? "—"
             let before = (op["before"] as? String) ?? ""
             let after = (op["after"] as? String) ?? ((op["text"] as? String) ?? "")
-            var change = ""
-            if !before.isEmpty { change += "<del>\(esc(before))</del> " }
-            if !after.isEmpty { change += "<ins>\(esc(after))</ins>" }
-            if change.isEmpty { change = "<span class=\"k\">\(esc(kind))</span>" }
-            rows += "<tr><td class=\"k\">\(esc(kind))</td><td>\(change)</td>"
-                + "<td class=\"who\">\(esc(agent))</td></tr>"
+
+            let row = NSMutableAttributedString()
+            row.append(run(kind + "  ", monoSmall, .secondaryLabelColor))
+            if !before.isEmpty {
+                row.append(NSAttributedString(string: before, attributes: [
+                    .font: body, .foregroundColor: NSColor.systemRed,
+                    .strikethroughStyle: NSUnderlineStyle.single.rawValue,
+                    .backgroundColor: NSColor.systemRed.withAlphaComponent(0.14),
+                ]))
+                row.append(run(" ", body, .labelColor))
+            }
+            if !after.isEmpty {
+                row.append(NSAttributedString(string: after, attributes: [
+                    .font: body, .foregroundColor: NSColor.systemGreen,
+                    .backgroundColor: NSColor.systemGreen.withAlphaComponent(0.16),
+                ]))
+            }
+            if before.isEmpty && after.isEmpty {
+                row.append(run(kind, body, .secondaryLabelColor))
+            }
+            row.append(run("   — " + agent + "\n", NSFont.systemFont(ofSize: 11), .tertiaryLabelColor))
+            row.addAttribute(.paragraphStyle, value: para, range: NSRange(location: 0, length: row.length))
+            rows.append(row)
         }
 
-        let body = """
-        <h1>\(esc(filename))</h1>
-        <p class="meta">\(esc(format)) · \(count) tracked change\(count == 1 ? "" : "s")</p>
-        <table>\(rows.isEmpty ? "<tr><td class=\"empty\">No changes recorded.</td></tr>" : rows)</table>
-        """
-        return wrap(body)
+        let label = "\(format) · \(count) tracked change\(count == 1 ? "" : "s")\n\n"
+        out.append(run(label, NSFont.systemFont(ofSize: 12), .secondaryLabelColor))
+        out.append(rows.length > 0 ? rows : run("No changes recorded.", body, .secondaryLabelColor))
+        return out
     }
 
-    // MARK: - source code ------------------------------------------------------
+    // MARK: - source code (language-agnostic highlighter)
 
-    private static func codeHTML(from data: Data, ext: String, hljs: String?) -> String {
-        let source = String(data: data, encoding: .utf8)
-            ?? String(data: data, encoding: .isoLatin1)
-            ?? ""
-        let lang = language(for: ext)
-        let cls = lang.map { " class=\"language-\($0)\"" } ?? ""
+    private static let keywords: Set<String> = [
+        "abstract", "and", "as", "assert", "async", "await", "break", "case", "catch", "class",
+        "const", "continue", "def", "default", "del", "do", "elif", "else", "end", "enum",
+        "except", "export", "extends", "extension", "false", "final", "finally", "fn", "for",
+        "from", "func", "function", "global", "go", "guard", "if", "impl", "import", "in",
+        "init", "instanceof", "interface", "is", "lambda", "let", "match", "mod", "module",
+        "mut", "new", "nil", "none", "not", "null", "or", "override", "package", "pass",
+        "private", "protected", "protocol", "pub", "public", "raise", "return", "self",
+        "static", "struct", "super", "switch", "this", "throw", "throws", "trait", "true",
+        "try", "type", "typedef", "typeof", "union", "unsafe", "use", "var", "void", "where",
+        "while", "with", "yield",
+    ]
 
-        // Inline highlight.js if we have it; otherwise show plain (still readable) source.
-        let hl: String
-        if let hljs, !hljs.isEmpty {
-            hl = """
-            <script>\(hljs)</script>
-            <script>
-            try { hljs.configure({ ignoreUnescapedHTML: true });
-                  document.querySelectorAll('pre code').forEach(function(b){ hljs.highlightElement(b); });
-            } catch (e) {}
-            </script>
-            """
-        } else {
-            hl = ""
+    private static func codeAttributed(from data: Data) -> NSAttributedString {
+        let src = String(data: data, encoding: .utf8)
+            ?? String(data: data, encoding: .isoLatin1) ?? ""
+        let out = NSMutableAttributedString()
+        let chars = Array(src)
+        let n = chars.count
+        var i = 0
+
+        let commentColor = NSColor.systemGray
+        let stringColor = NSColor.systemRed
+        let numberColor = NSColor.systemTeal
+        let keywordColor = NSColor.systemPink
+        let plainColor = NSColor.labelColor
+
+        func emit(_ s: String, _ color: NSColor) {
+            out.append(NSAttributedString(string: s, attributes: [.font: monoBody, .foregroundColor: color]))
         }
 
-        let body = "<pre class=\"code\"><code\(cls)>\(esc(source))</code></pre>"
-        return wrap(body, extraHead: hljsTheme, trailing: hl, wide: true)
-    }
-
-    /// File-extension → highlight.js language id. nil ⇒ let highlight.js auto-detect.
-    private static func language(for ext: String) -> String? {
-        let map: [String: String] = [
-            "swift": "swift", "py": "python", "pyw": "python", "rb": "ruby", "js": "javascript",
-            "mjs": "javascript", "cjs": "javascript", "jsx": "javascript", "ts": "typescript",
-            "tsx": "typescript", "c": "c", "h": "c", "cc": "cpp", "cpp": "cpp", "cxx": "cpp",
-            "hpp": "cpp", "hh": "cpp", "m": "objectivec", "mm": "objectivec", "java": "java",
-            "kt": "kotlin", "kts": "kotlin", "go": "go", "rs": "rust", "php": "php",
-            "pl": "perl", "pm": "perl", "sh": "bash", "bash": "bash", "zsh": "bash",
-            "fish": "bash", "ps1": "powershell", "sql": "sql", "r": "r", "scala": "scala",
-            "lua": "lua", "dart": "dart", "ex": "elixir", "exs": "elixir", "erl": "erlang",
-            "hs": "haskell", "clj": "clojure", "cs": "csharp", "fs": "fsharp", "vb": "vbnet",
-            "json": "json", "jsonl": "json", "yaml": "yaml", "yml": "yaml", "toml": "ini",
-            "ini": "ini", "cfg": "ini", "conf": "ini", "xml": "xml", "html": "xml",
-            "htm": "xml", "svg": "xml", "plist": "xml", "css": "css", "scss": "scss",
-            "less": "less", "md": "markdown", "markdown": "markdown", "tex": "latex",
-            "dockerfile": "dockerfile", "makefile": "makefile", "mk": "makefile",
-            "gradle": "gradle", "groovy": "groovy", "diff": "diff", "patch": "diff",
-            "graphql": "graphql", "proto": "protobuf", "vue": "xml", "tf": "terraform",
-        ]
-        return map[ext]
-    }
-
-    // MARK: - helpers ----------------------------------------------------------
-
-    private static func esc(_ s: String) -> String {
-        s.replacingOccurrences(of: "&", with: "&amp;")
-            .replacingOccurrences(of: "<", with: "&lt;")
-            .replacingOccurrences(of: ">", with: "&gt;")
-    }
-
-    /// Page chrome. A SOLID background is always painted (in both colour schemes) so the
-    /// preview is never dark-text-on-dark — the bug that made it look blank.
-    private static func wrap(_ inner: String, extraHead: String = "", trailing: String = "",
-                             wide: Bool = false) -> String {
-        """
-        <!doctype html><html><head><meta charset="utf-8">
-        <meta name="color-scheme" content="light dark">
-        <style>
-        :root{color-scheme:light dark}
-        html,body{margin:0}
-        body{font:13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-             padding:\(wide ? "0" : "16px");color:#1d1d1f;background:#ffffff}
-        h1{font-size:17px;margin:0 0 2px;font-weight:600}
-        .meta{color:#86868b;margin:0 0 14px}
-        table{border-collapse:collapse;width:100%}
-        td{border-top:1px solid #e5e5e7;padding:6px 8px;vertical-align:top;line-height:1.4}
-        .k{font:11px ui-monospace,SFMono-Regular,Menlo,monospace;color:#6e6e73;white-space:nowrap}
-        .who{color:#86868b;white-space:nowrap;text-align:right}
-        .empty{color:#86868b}
-        ins{background:#d8f5e0;text-decoration:none;border-radius:3px;padding:0 2px}
-        del{background:#ffe0e3;border-radius:3px;padding:0 2px}
-        pre.code{margin:0;padding:14px 16px;overflow:auto;
-                 font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;line-height:1.5;
-                 -webkit-text-size-adjust:100%;tab-size:4}
-        pre.code code{white-space:pre}
-        @media(prefers-color-scheme:dark){
-          body{color:#f5f5f7;background:#1e1e1e}
-          td{border-color:#3a3a3c}.meta,.who,.k,.empty{color:#9a9a9e}
-          ins{background:#163a24;color:#d8f5e0}del{background:#3a1a1f;color:#ffd2d6}
+        while i < n {
+            let c = chars[i]
+            // line comment: //  #  --
+            if (c == "/" && i + 1 < n && chars[i + 1] == "/")
+                || c == "#"
+                || (c == "-" && i + 1 < n && chars[i + 1] == "-") {
+                var j = i
+                while j < n && chars[j] != "\n" { j += 1 }
+                emit(String(chars[i..<j]), commentColor); i = j; continue
+            }
+            // block comment /* ... */
+            if c == "/" && i + 1 < n && chars[i + 1] == "*" {
+                var j = i + 2
+                while j + 1 < n && !(chars[j] == "*" && chars[j + 1] == "/") { j += 1 }
+                j = min(j + 2, n)
+                emit(String(chars[i..<j]), commentColor); i = j; continue
+            }
+            // string  "  '  `
+            if c == "\"" || c == "'" || c == "`" {
+                let q = c
+                var j = i + 1
+                while j < n {
+                    if chars[j] == "\\" { j += 2; continue }
+                    if chars[j] == q { j += 1; break }
+                    if chars[j] == "\n" { break }
+                    j += 1
+                }
+                emit(String(chars[i..<min(j, n)]), stringColor); i = min(j, n); continue
+            }
+            // number
+            if c.isNumber {
+                var j = i
+                while j < n && (chars[j].isHexDigit || chars[j] == "." || chars[j] == "x"
+                               || chars[j] == "_" || chars[j] == "e") { j += 1 }
+                emit(String(chars[i..<j]), numberColor); i = j; continue
+            }
+            // identifier / keyword
+            if c.isLetter || c == "_" {
+                var j = i
+                while j < n && (chars[j].isLetter || chars[j].isNumber || chars[j] == "_") { j += 1 }
+                let word = String(chars[i..<j])
+                emit(word, keywords.contains(word) ? keywordColor : plainColor); i = j; continue
+            }
+            emit(String(c), plainColor); i += 1
         }
-        \(extraHead)
-        </style></head><body>\(inner)\(trailing)</body></html>
-        """
+        return out
     }
 
-    /// A compact highlight.js theme (GitHub-ish) for both light and dark schemes.
-    private static let hljsTheme = """
-    .hljs{display:block}
-    .hljs-comment,.hljs-quote{color:#6e7781;font-style:italic}
-    .hljs-keyword,.hljs-selector-tag,.hljs-literal,.hljs-doctag{color:#cf222e}
-    .hljs-type,.hljs-class .hljs-title,.hljs-title.class_{color:#953800}
-    .hljs-string,.hljs-meta .hljs-string,.hljs-regexp,.hljs-addition{color:#0a3069}
-    .hljs-number,.hljs-symbol,.hljs-bullet{color:#0550ae}
-    .hljs-title,.hljs-title.function_,.hljs-section,.hljs-name{color:#8250df}
-    .hljs-attr,.hljs-attribute,.hljs-variable,.hljs-template-variable{color:#0550ae}
-    .hljs-built_in,.hljs-builtin-name{color:#0550ae}
-    .hljs-meta,.hljs-tag{color:#116329}
-    .hljs-deletion{color:#82071e;background:#ffebe9}
-    .hljs-emphasis{font-style:italic}.hljs-strong{font-weight:600}
-    @media(prefers-color-scheme:dark){
-      .hljs-comment,.hljs-quote{color:#8b949e}
-      .hljs-keyword,.hljs-selector-tag,.hljs-literal,.hljs-doctag{color:#ff7b72}
-      .hljs-type,.hljs-class .hljs-title,.hljs-title.class_{color:#ffa657}
-      .hljs-string,.hljs-meta .hljs-string,.hljs-regexp,.hljs-addition{color:#a5d6ff}
-      .hljs-number,.hljs-symbol,.hljs-bullet{color:#79c0ff}
-      .hljs-title,.hljs-title.function_,.hljs-section,.hljs-name{color:#d2a8ff}
-      .hljs-attr,.hljs-attribute,.hljs-variable,.hljs-template-variable{color:#79c0ff}
-      .hljs-built_in,.hljs-builtin-name{color:#79c0ff}
-      .hljs-meta,.hljs-tag{color:#7ee787}
-      .hljs-deletion{color:#ffdcd7;background:#67060c}
+    // MARK: - helpers
+
+    private static func run(_ s: String, _ font: NSFont, _ color: NSColor) -> NSAttributedString {
+        NSAttributedString(string: s, attributes: [.font: font, .foregroundColor: color])
     }
-    """
+
+    private static func plainText(_ s: String) -> NSAttributedString {
+        run(s, body, .secondaryLabelColor)
+    }
 }

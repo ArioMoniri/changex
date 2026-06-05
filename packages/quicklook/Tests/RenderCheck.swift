@@ -1,8 +1,9 @@
-import Foundation
+import AppKit
 
-/// Headless guard for the Quick Look renderer (no WebKit needed): asserts the HTML
-/// actually contains the redline / syntax-highlight markup and a solid background — the
-/// regression that once made the preview look blank. Run in CI:
+/// Headless guard for the Quick Look renderer: asserts the native NSAttributedString actually
+/// contains the redline text + the right attributes (strikethrough deletion, coloured
+/// insertion) and that code is syntax-coloured — the regression that once made the preview
+/// blank. Run in CI:
 ///   swiftc -O Extension/ChangexRenderer.swift Tests/RenderCheck.swift -o rendercheck && ./rendercheck
 @main
 struct RenderCheck {
@@ -12,31 +13,36 @@ struct RenderCheck {
             if cond { print("ok  · \(msg)") } else { print("FAIL· \(msg)"); fails += 1 }
         }
 
+        func hasAttr(_ s: NSAttributedString, _ key: NSAttributedString.Key,
+                     where pred: (Any) -> Bool) -> Bool {
+            var found = false
+            s.enumerateAttribute(key, in: NSRange(location: 0, length: s.length)) { v, _, stop in
+                if let v = v, pred(v) { found = true; stop.pointee = true }
+            }
+            return found
+        }
+
         // .changex → redline
         let journal = """
         {"type":"header","doc":{"filename":"Doc.docx","format":"docx"}}
         {"op":{"kind":"text.replace","before":"old","after":"new"},"provenance":{"agent":"Claude"}}
         """
-        let chx = ChangexRenderer.html(for: URL(fileURLWithPath: "/tmp/x.changex"),
-                                       data: Data(journal.utf8), hljs: nil)
-        check(chx.contains("Doc.docx"), "changex shows filename")
-        check(chx.contains("<del>old</del>"), "changex shows deletion")
-        check(chx.contains("<ins>new</ins>"), "changex shows insertion")
-        check(chx.contains("1 tracked change"), "changex counts ops")
-        check(chx.contains("background:#ffffff"), "solid background (never blank)")
+        let chx = ChangexRenderer.attributed(for: URL(fileURLWithPath: "/tmp/x.changex"),
+                                             data: Data(journal.utf8))
+        let chxText = chx.string
+        check(chxText.contains("Doc.docx"), "changex shows filename")
+        check(chxText.contains("old") && chxText.contains("new"), "changex shows before/after")
+        check(chxText.contains("1 tracked change"), "changex counts ops")
+        check(chx.length > 0, "changex preview is non-empty (never blank)")
+        check(hasAttr(chx, .strikethroughStyle) { ($0 as? Int ?? 0) != 0 }, "deletion is struck through")
+        check(hasAttr(chx, .foregroundColor) { ($0 as? NSColor) == .systemGreen }, "insertion is green")
 
-        // code → syntax highlight
-        let code = ChangexRenderer.html(for: URL(fileURLWithPath: "/tmp/x.py"),
-                                        data: Data("import os\nprint(1)\n".utf8), hljs: "/*HLJS*/")
-        check(code.contains("class=\"language-python\""), "python tagged for highlight.js")
-        check(code.contains("/*HLJS*/"), "highlight.js inlined into the page")
-        check(code.contains("<pre class=\"code\">"), "code block rendered")
-        check(code.contains("background:#ffffff"), "code view solid background")
-
-        // a .changex extension still wins even with code-ish content
-        let amb = ChangexRenderer.html(for: URL(fileURLWithPath: "/tmp/y.changex"),
-                                       data: Data(journal.utf8), hljs: "/*HLJS*/")
-        check(!amb.contains("language-"), "changex extension routes to redline, not code")
+        // code → syntax highlight (keyword coloured)
+        let code = ChangexRenderer.attributed(for: URL(fileURLWithPath: "/tmp/x.py"),
+                                              data: Data("import os  # c\nx = 1\n".utf8))
+        check(code.string.contains("import"), "code shows the source")
+        check(hasAttr(code, .foregroundColor) { ($0 as? NSColor) == .systemPink }, "keyword coloured")
+        check(hasAttr(code, .foregroundColor) { ($0 as? NSColor) == .systemGray }, "comment coloured")
 
         if fails > 0 { print("\n\(fails) render check(s) failed"); exit(1) }
         print("\nall render checks passed")
