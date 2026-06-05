@@ -38,10 +38,21 @@ Write-Host "Registering COM server..." -ForegroundColor Cyan
 
 Write-Host "Associating extensions with the ChangeX preview handler..." -ForegroundColor Cyan
 foreach ($ext in $exts) {
+    # (1) Explorer preview pane (Alt+P) via the COM handler.
     $key = "Registry::HKEY_CLASSES_ROOT\$ext\shellex\$previewIid"
     New-Item -Path $key -Force | Out-Null
     Set-ItemProperty -Path $key -Name '(default)' -Value $clsid
+
+    # (2) Reliable right-click "Preview with ChangeX" → opens the HTML in the default browser
+    #     (the cross-platform engine; works even without the preview pane).
+    $verb = "Registry::HKEY_CLASSES_ROOT\SystemFileAssociations\$ext\shell\ChangeXPreview"
+    New-Item -Path $verb -Force | Out-Null
+    Set-ItemProperty -Path $verb -Name 'MUIVerb' -Value 'Preview with ChangeX'
+    New-Item -Path "$verb\command" -Force | Out-Null
+    Set-ItemProperty -Path "$verb\command" -Name '(default)' -Value 'cmd /c changex preview "%1" --open'
 }
 
-Write-Host "`nDone. Open Explorer, enable the Preview pane (Alt+P), and select a .changex or code file." -ForegroundColor Green
-Write-Host "If a preview doesn't appear, sign out/in (Explorer caches preview handlers)."
+Write-Host "`nDone." -ForegroundColor Green
+Write-Host "  • Preview pane: open Explorer, press Alt+P, select a .changex or code file."
+Write-Host "  • Or right-click any such file → 'Preview with ChangeX' (opens in your browser)."
+Write-Host "If the preview pane stays blank, use the right-click option (or sign out/in — Explorer caches handlers)."

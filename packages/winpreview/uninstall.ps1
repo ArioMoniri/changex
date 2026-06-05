@@ -21,6 +21,8 @@ $exts = @(
 foreach ($ext in $exts) {
     $key = "Registry::HKEY_CLASSES_ROOT\$ext\shellex\$previewIid"
     if (Test-Path $key) { Remove-Item -Path $key -Recurse -Force -ErrorAction SilentlyContinue }
+    $verb = "Registry::HKEY_CLASSES_ROOT\SystemFileAssociations\$ext\shell\ChangeXPreview"
+    if (Test-Path $verb) { Remove-Item -Path $verb -Recurse -Force -ErrorAction SilentlyContinue }
 }
 
 $regasm = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\regasm.exe'

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from typing import Sequence
 
@@ -181,7 +182,18 @@ def cmd_preview(args: argparse.Namespace) -> int:
     from changex_core.preview import preview_html
 
     report = preview_html(args.file)
-    if args.out:
+    if getattr(args, "open", False):
+        # Write a temp HTML and open it in the default browser — the reliable cross-platform
+        # "preview" (used by the Windows right-click "Preview with ChangeX" entry).
+        import tempfile
+        import webbrowser
+
+        fd, tmp = tempfile.mkstemp(prefix="changex_preview_", suffix=".html")
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(report)
+        webbrowser.open(f"file://{tmp}")
+        print(f"preview -> {tmp} (opened in browser)")
+    elif args.out:
         out = safe_path(args.out)
         out.write_text(report, encoding="utf-8")
         print(f"preview -> {out}")
@@ -420,6 +432,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     preview.add_argument("file", help="file to preview (.changex journal or a source/text file)")
     preview.add_argument("--out", help="write HTML to this path (else stdout)")
+    preview.add_argument(
+        "--open", action="store_true", help="open the preview in your default web browser"
+    )
     preview.set_defaults(func=cmd_preview)
 
     view = sub.add_parser("view", help="serve an interactive localhost review UI")
