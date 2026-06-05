@@ -15,7 +15,33 @@ enum ChangexRenderer {
         if ext == "changex" || looksLikeChangex(data) {
             return changexAttributed(from: data)
         }
-        return codeAttributed(from: data)
+        if codeExtensions.contains(ext) {
+            return codeAttributed(from: data)
+        }
+        // Plain text (.txt/.log/unknown): render as-is, WITHOUT code highlighting — otherwise
+        // ordinary prose words ("is", "for", "in", "type"…) would be coloured like keywords.
+        return plainTextAttributed(from: data)
+    }
+
+    /// Extensions we treat as source code (→ syntax highlighting). Everything else that
+    /// reaches the renderer is shown as plain text.
+    private static let codeExtensions: Set<String> = [
+        "py", "pyw", "rb", "js", "mjs", "cjs", "jsx", "ts", "tsx", "c", "h", "cc", "cpp",
+        "cxx", "hpp", "hh", "m", "mm", "java", "kt", "kts", "go", "rs", "php", "pl", "pm",
+        "sh", "bash", "zsh", "fish", "ps1", "sql", "r", "scala", "lua", "dart", "ex", "exs",
+        "erl", "hs", "clj", "cs", "fs", "vb", "swift", "json", "jsonl", "yaml", "yml", "toml",
+        "ini", "cfg", "conf", "xml", "html", "htm", "svg", "plist", "css", "scss", "less",
+        "gradle", "groovy", "diff", "patch", "graphql", "proto", "vue", "tf", "asm", "s",
+    ]
+
+    private static func plainTextAttributed(from data: Data) -> NSAttributedString {
+        let text = String(data: data, encoding: .utf8)
+            ?? String(data: data, encoding: .isoLatin1) ?? ""
+        let para = NSMutableParagraphStyle()
+        para.lineSpacing = 2
+        return NSAttributedString(string: text, attributes: [
+            .font: monoBody, .foregroundColor: NSColor.labelColor, .paragraphStyle: para,
+        ])
     }
 
     // MARK: - fonts

@@ -44,6 +44,13 @@ struct RenderCheck {
         check(hasAttr(code, .foregroundColor) { ($0 as? NSColor) == .systemPink }, "keyword coloured")
         check(hasAttr(code, .foregroundColor) { ($0 as? NSColor) == .systemGray }, "comment coloured")
 
+        // plain text (.txt) → shown as-is, NOT mis-highlighted as code
+        let txt = ChangexRenderer.attributed(for: URL(fileURLWithPath: "/tmp/note.txt"),
+                                             data: Data("for the type is done\n".utf8))
+        check(txt.string.contains("for the type is done"), "text file shows its content")
+        check(!hasAttr(txt, .foregroundColor) { ($0 as? NSColor) == .systemPink },
+              "prose words are NOT coloured like keywords")
+
         if fails > 0 { print("\n\(fails) render check(s) failed"); exit(1) }
         print("\nall render checks passed")
     }
