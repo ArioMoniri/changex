@@ -172,6 +172,24 @@ def cmd_review(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_preview(args: argparse.Namespace) -> int:
+    """Render any file to a self-contained HTML preview (journal redline or code).
+
+    Cross-platform — this is what the Windows preview handler shells out to, so Windows
+    gets the same preview as the macOS Quick Look extension.
+    """
+    from changex_core.preview import preview_html
+
+    report = preview_html(args.file)
+    if args.out:
+        out = safe_path(args.out)
+        out.write_text(report, encoding="utf-8")
+        print(f"preview -> {out}")
+    else:
+        print(report)
+    return 0
+
+
 def cmd_view(args: argparse.Namespace) -> int:
     """Serve the interactive localhost review UI for a .changex journal."""
     changex_path = safe_path(args.changex, must_exist=True, allow_suffixes=(".changex", ".jsonl"))
@@ -293,6 +311,7 @@ _HELP_GROUPS = [
         [
             ("track", "apply scripted ops to a doc → tracked file + .changex"),
             ("review", "render an HTML / markdown redline of the changes"),
+            ("preview", "render ANY file to self-contained HTML (redline or code)"),
             ("view", "serve a localhost review page — accept / reject live"),
             ("verify", "check a .changex hash chain + baseline"),
         ],
@@ -394,6 +413,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     review.add_argument("--out", help="write report to this path (else stdout)")
     review.set_defaults(func=cmd_review)
+
+    preview = sub.add_parser(
+        "preview",
+        help="render ANY file to self-contained HTML (.changex → redline, code → highlighted)",
+    )
+    preview.add_argument("file", help="file to preview (.changex journal or a source/text file)")
+    preview.add_argument("--out", help="write HTML to this path (else stdout)")
+    preview.set_defaults(func=cmd_preview)
 
     view = sub.add_parser("view", help="serve an interactive localhost review UI")
     view.add_argument("changex", help=".changex journal")

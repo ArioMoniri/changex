@@ -1,0 +1,62 @@
+## Builds the ChangeX Windows preview handler (Explorer preview pane) and verifies the
+## cross-platform `changex preview` engine on a real Windows runner. Packages a .zip
+## (DLL + install/uninstall scripts) and attaches it to the release on a version tag.
+
+name: Windows preview (handler + engine)
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  winpreview:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the ChangeX engine (with syntax highlighting)
+        run: pip install "./packages/core[preview]"
+
+      - name: Engine smoke test (the same preview Windows shows)
+        shell: pwsh
+        run: |
+          Set-Content -Path sample.py -Value "import math`r`ndef area(r):`r`n    return math.pi*r*r`r`nprint(area(2))"
+          $html = changex preview sample.py
+          if ($html -notmatch 'class="highlight"') { throw "code preview not highlighted" }
+          if ($html -notmatch '<span')            { throw "no token spans in code preview" }
+          Write-Host "OK: changex preview highlights code on Windows"
+
+      - name: Build the preview handler (.NET Framework 4.8)
+        run: dotnet build packages/winpreview/ChangeXPreview/ChangeXPreview.csproj -c Release
+
+      - name: Package the installer zip
+        shell: pwsh
+        run: |
+          $out = "winpreview-dist"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          Copy-Item packages/winpreview/ChangeXPreview/bin/Release/net48/ChangeXPreview.dll $out/
+          Copy-Item packages/winpreview/install.ps1 $out/
+          Copy-Item packages/winpreview/uninstall.ps1 $out/
+          Copy-Item packages/winpreview/README.md $out/
+          Compress-Archive -Path "$out/*" -DestinationPath ChangeX-Windows-Preview.zip -Force
+          Get-Item ChangeX-Windows-Preview.zip | Select-Object Name,Length
+
+      - name: Attach to the release (tag runs only)
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.ref_name }}" -R "$env:GITHUB_REPOSITORY" ChangeX-Windows-Preview.zip --clobber
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ChangeX-Windows-Preview
+          path: ChangeX-Windows-Preview.zip

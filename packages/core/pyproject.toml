@@ -27,10 +27,16 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Syntax-highlighted `changex preview` of source-code files. Optional so the core spine
+# stays lean; without it `preview` still renders (plain, uncoloured) source.
+preview = [
+    "pygments>=2.0",
+]
 dev = [
     "pytest>=7.0",
     "ruff>=0.1",
     "mypy>=1.5",
+    "pygments>=2.0",
 ]
 
 [project.scripts]

@@ -179,7 +179,7 @@ version = "0.1.11"
 source = { editable = "." }
 dependencies = [
     { name = "changex-api" },
-    { name = "changex-core" },
+    { name = "changex-core", extra = ["preview"] },
     { name = "changex-mcp" },
 ]
 
@@ -193,7 +193,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "changex-api", editable = "packages/api" },
-    { name = "changex-core", editable = "packages/core" },
+    { name = "changex-core", extras = ["preview"], editable = "packages/core" },
     { name = "changex-mcp", editable = "packages/mcp" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.5" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
@@ -245,8 +245,12 @@ dependencies = [
 [package.optional-dependencies]
 dev = [
     { name = "mypy" },
+    { name = "pygments" },
     { name = "pytest" },
     { name = "ruff" },
+]
+preview = [
+    { name = "pygments" },
 ]
 
 [package.metadata]
@@ -254,12 +258,14 @@ requires-dist = [
     { name = "lxml", specifier = ">=4.9.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.5" },
     { name = "openpyxl", specifier = ">=3.1.0" },
+    { name = "pygments", marker = "extra == 'dev'", specifier = ">=2.0" },
+    { name = "pygments", marker = "extra == 'preview'", specifier = ">=2.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "python-docx", specifier = ">=1.1.0" },
     { name = "python-pptx", specifier = ">=0.6.21" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["preview", "dev"]
 
 [[package]]
 name = "changex-mcp"

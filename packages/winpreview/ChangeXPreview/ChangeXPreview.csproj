@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ChangeX Windows Explorer Preview Handler.
+       A COM in-proc preview handler for .changex journals and source-code files. It shells
+       out to `changex preview <file>` (the same engine the macOS Quick Look extension uses)
+       and shows the resulting HTML in the Explorer preview pane (the Windows analogue of
+       Quick Look's Space-bar preview). Pygments output is plain HTML+CSS, so the built-in
+       WebBrowser control renders it with no extra runtime. -->
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>9.0</LangVersion>
+    <AssemblyName>ChangeXPreview</AssemblyName>
+    <RootNamespace>ChangeXPreview</RootNamespace>
+    <!-- .NET Framework COM registration is done with regasm /codebase (see install.ps1),
+         not .NET Core's comhost. -->
+    <Version>0.1.11</Version>
+    <Company>Ariorad Moniri</Company>
+    <Product>ChangeX Preview Handler</Product>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+
+</Project>

@@ -52,7 +52,8 @@ classifiers = [
 # `pipx install changex`, and `pip install changex` therefore land both the
 # CLI and the MCP server in one step.
 dependencies = [
-    "changex-core>=0.1.11",
+    # [preview] pulls Pygments so `changex preview` highlights source code out of the box.
+    "changex-core[preview]>=0.1.11",
     "changex-mcp>=0.1.11",
     "changex-api>=0.1.11",
 ]

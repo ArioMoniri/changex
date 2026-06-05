@@ -25,10 +25,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libreoffice-writer
 
-      - name: Install ChangeX (core + mcp[http] + api) and test deps
+      - name: Install ChangeX (core[preview] + mcp[http] + api) and test deps
         run: |
           python -m pip install --upgrade pip
-          pip install -e packages/core -e "packages/mcp[http]" -e packages/api pytest httpx
+          pip install -e "packages/core[preview]" -e "packages/mcp[http]" -e packages/api pytest httpx
 
       - name: Test suite (portable — runs everywhere)
         run: pytest -q
@@ -51,3 +51,26 @@ jobs:
         run: |
           npm ci
           npm run build
+
+  windows-preview:
+    name: Windows preview engine + handler build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the engine + test the preview on Windows
+        run: |
+          python -m pip install --upgrade pip
+          pip install "./packages/core[preview]" pytest
+          pytest -q tests/test_preview.py
+      - name: changex preview smoke (real Windows)
+        shell: pwsh
+        run: |
+          Set-Content -Path sample.py -Value "import math`r`nprint(math.pi)"
+          $html = changex preview sample.py
+          if ($html -notmatch 'class="highlight"') { throw "code preview not highlighted on Windows" }
+          Write-Host "OK: changex preview works on Windows"
+      - name: Build the Explorer preview handler (.NET Framework 4.8)
+        run: dotnet build packages/winpreview/ChangeXPreview/ChangeXPreview.csproj -c Release
