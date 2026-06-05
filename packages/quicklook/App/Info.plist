@@ -12,6 +12,8 @@
   <string>$(PRODUCT_NAME)</string>
   <key>CFBundleDisplayName</key>
   <string>ChangeX Quick Look</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
@@ -31,6 +33,8 @@
       <string>dev.changex.journal</string>
       <key>UTTypeDescription</key>
       <string>ChangeX provenance journal</string>
+      <key>UTTypeIconFile</key>
+      <string>AppIcon</string>
       <key>UTTypeConformsTo</key>
       <array>
         <string>public.json</string>

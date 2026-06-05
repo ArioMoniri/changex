@@ -23,6 +23,13 @@ jobs:
       - name: Install xcodegen
         run: brew install xcodegen
 
+      - name: Render check (headless — guards the blank-preview & syntax-highlight regression)
+        working-directory: packages/quicklook
+        run: |
+          set -euo pipefail
+          swiftc -O Extension/ChangexRenderer.swift Tests/RenderCheck.swift -o "$RUNNER_TEMP/rendercheck"
+          "$RUNNER_TEMP/rendercheck"
+
       - name: Build (unsigned) then codesign Developer ID (if cert present)
         working-directory: packages/quicklook
         env:
