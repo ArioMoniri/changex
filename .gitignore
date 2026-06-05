@@ -35,7 +35,7 @@ packages/viewer/src-tauri/icons/icon.icns
 packages/viewer/src-tauri/icons/icon.ico
 packages/viewer/src-tauri/icons/Square*.png
 packages/viewer/src-tauri/icons/StoreLogo.png
-packages/viewer/src-tauri/icons/_source.png
+# _source.png IS committed — it's the real ChangeX logo the icon set is generated from.
 
 # screenshot intermediates (only the PNGs are committed)
 docs/assets/_render/
