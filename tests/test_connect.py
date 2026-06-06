@@ -50,6 +50,17 @@ def test_merge_reports_updated_when_changex_present(tmp_path: Path) -> None:
     assert _merge_mcp_config(cfg) == "updated"
 
 
+def test_merge_is_idempotent_no_rewrite_when_unchanged(tmp_path: Path) -> None:
+    # Safe for the Viewer to run on every launch: a second identical merge is a no-op
+    # (returns "unchanged" and does not write a fresh backup).
+    cfg = tmp_path / "claude_desktop_config.json"
+    assert _merge_mcp_config(cfg) == "added"
+    bak = tmp_path / "claude_desktop_config.json.changex-bak"
+    assert not bak.exists()  # nothing to back up on first create
+    assert _merge_mcp_config(cfg) == "unchanged"
+    assert not bak.exists()  # unchanged → no rewrite, no backup
+
+
 def test_merge_refuses_invalid_json(tmp_path: Path) -> None:
     cfg = tmp_path / "broken.json"
     cfg.write_text("{ not json ")

@@ -88,14 +88,21 @@ def _merge_mcp_config(path: Path) -> str:
         if not isinstance(parsed, dict):
             raise ConnectError(f"{path} is not a JSON object; refusing to overwrite it.")
         data = parsed
-        path.with_name(path.name + ".changex-bak").write_text(raw, encoding="utf-8")
     else:
+        raw = ""
         path.parent.mkdir(parents=True, exist_ok=True)
 
     servers_obj = data.get("mcpServers")
     servers: dict[str, object] = servers_obj if isinstance(servers_obj, dict) else {}
+    block = _server_block()
+    # Idempotent: if the changex entry already matches, don't rewrite (or back up). This makes
+    # it safe for the Viewer to run `changex connect claude-desktop` on every launch.
+    if servers.get("changex") == block:
+        return "unchanged"
     action = "updated" if "changex" in servers else "added"
-    servers["changex"] = _server_block()
+    if raw:
+        path.with_name(path.name + ".changex-bak").write_text(raw, encoding="utf-8")
+    servers["changex"] = block
     data["mcpServers"] = servers
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
     return action
@@ -104,6 +111,10 @@ def _merge_mcp_config(path: Path) -> str:
 def _connect_config_file(label: str, path: Path, *, restart: str | None = None) -> None:
     """Merge the changex stdio block into ``path`` and report what happened."""
     action = _merge_mcp_config(path)
+    if action == "unchanged":
+        print(ui.ok(f"changex is already connected to {label}."))
+        print(ui.field("config", str(path)))
+        return
     print(ui.ok(f"changex {action} to {label}."))
     print(ui.field("config", str(path)))
     command, args = _mcp_command()

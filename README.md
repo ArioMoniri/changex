@@ -147,7 +147,11 @@ This path sees only before-and-after bytes, so it records a **faithful *what-cha
 
 ## 🔌 Set up your app
 
-**Easiest — one command writes the config for you:**
+> **Installed the ChangeX Viewer app?** It **auto-connects to Claude Desktop on launch** (macOS &
+> Windows) — just open it once, then ⌘Q + reopen Claude Desktop. No command needed. The button in
+> **Viewer ▸ Settings ▸ Use ChangeX in Claude** re-runs it any time.
+
+**Or one command writes the config for you:**
 
 ```bash
 changex connect                  # list every app it can set up

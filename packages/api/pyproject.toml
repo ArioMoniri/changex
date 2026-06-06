@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "changex-api"
-version = "0.1.15"
+version = "0.1.16"
 description = "ChangeX HTTP/REST API: a thin FastAPI wrapper over the changex-core spine so any app or model — local/offline LLMs, or a ChatGPT custom GPT Action consuming /openapi.json — can open, edit, save, and review tracked Word documents over HTTP."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -26,7 +26,7 @@ dependencies = [
     "uvicorn>=0.27",
     # The ChangeX spine: model, journal, docx adapter, passive capture, render.
     # Pinned for the standalone install path; resolved from the workspace for dev.
-    "changex-core>=0.1.15",
+    "changex-core>=0.1.16",
 ]
 
 [project.optional-dependencies]

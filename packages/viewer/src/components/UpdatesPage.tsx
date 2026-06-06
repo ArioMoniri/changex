@@ -27,6 +27,7 @@ export function UpdatesPage({ onClose }: { onClose: () => void }) {
   const [phase, setPhase] = useState<Phase>({ k: "checking" });
   const [pending, setPending] = useState<PendingUpdate | null>(null);
   const [qlMsg, setQlMsg] = useState<string>("");
+  const [claudeMsg, setClaudeMsg] = useState<string>("");
 
   useEffect(() => {
     import("@tauri-apps/api/app")
@@ -56,6 +57,19 @@ export function UpdatesPage({ onClose }: { onClose: () => void }) {
       setQlMsg((res.stdout + res.stderr).trim() || "Quick Look enabled.");
     } catch (e) {
       setQlMsg(String(e));
+    }
+  }, []);
+
+  // Register the changex MCP with the Claude Desktop app. The Viewer also does this
+  // automatically on launch; this button lets the user re-run it / see the result.
+  const connectClaude = useCallback(async () => {
+    setClaudeMsg("Connecting to Claude Desktop…");
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const res = (await invoke("connect_claude")) as { stdout: string; stderr: string };
+      setClaudeMsg((res.stdout + res.stderr).trim() || "Connected to Claude Desktop.");
+    } catch (e) {
+      setClaudeMsg(String(e));
     }
   }, []);
 
@@ -161,6 +175,19 @@ export function UpdatesPage({ onClose }: { onClose: () => void }) {
           <button className="ghost" onClick={() => setQuickLook("disable")}>
             Disable
           </button>
+        </div>
+
+        <hr className="updates-rule" />
+
+        <h3 className="updates-h3">Use ChangeX in Claude</h3>
+        <p className="updates-sub">
+          Registers the ChangeX tools with the <strong>Claude Desktop</strong> app so you can ask
+          Claude to open, edit, and save tracked documents. This runs automatically when the app
+          starts — use the button to re-run it. <em>Fully quit &amp; reopen Claude Desktop after.</em>
+        </p>
+        {claudeMsg && <pre className="updates-notes">{claudeMsg}</pre>}
+        <div className="updates-ql-row">
+          <button onClick={connectClaude}>Connect to Claude Desktop</button>
         </div>
 
         <div className="updates-foot">
