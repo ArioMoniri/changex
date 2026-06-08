@@ -41,9 +41,9 @@ A diff tells you <i>how two files differ</i>; ChangeX tells you <b>what the AI a
 # 1) install the tool
 uv tool install changex                      # or: pipx install changex · pip install changex
 
-# 2) connect it to Claude CODE (terminal / IDE) — once; works in every folder, no duplicates
-#    chatting in the Claude DESKTOP app instead? that's a SEPARATE config → docs/CLAUDE-SETUP.md
-claude mcp add -s user changex -- changex-mcp
+# 2) connect it to every AI app you have — Claude Code, the Claude Desktop app, Cursor, Gemini
+changex connect all                          # then ⌘Q + reopen the Claude Desktop app once
+#    (the ChangeX Viewer app does this for you automatically on first launch)
 
 # 3) ask your assistant, e.g.:
 #    "Use changex to open report.docx, tighten the intro as tracked changes,
@@ -300,6 +300,7 @@ Add to `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global) — Cline u
 changex review report.changex --out review.html                            # 🐙 GitKraken-style commit graph
 changex log    report.changex                                              # 🌿 git-log of every edit (--oneline)
 changex rewind report.changex original.docx --to 3 --out phase3.docx        # ⏪ the doc at any earlier phase
+changex verify report.changex                                              # 🔒 hash-chain tamper check
 changex view   report.changex --doc report.tracked.docx                     # 🌐 live local page (accept/reject)
 changex preview report.changex --out preview.html                           # 🔎 self-contained HTML (any platform)
 #  …or just open report.tracked.docx in Word — real native track changes 🖊️
@@ -421,7 +422,10 @@ Run `changex` (or `changex help`) for the full list:
 
   Track & review
     track    apply ops to a doc (.docx/.xlsx/.csv/.pptx/.md/.doc) → tracked file + .changex
-    review   render an HTML / markdown redline (--doc = inline in the doc's outline)
+    review   render the changes as a GitKraken-style commit graph (HTML)
+    log      git-log of every edit (--oneline)
+    rewind   reconstruct the document at any earlier phase (git checkout)
+    preview  render ANY file to self-contained HTML (redline, or highlighted code/text)
     view     serve an interactive localhost review page (accept / reject)
     verify   check a .changex hash chain + baseline
 
@@ -429,8 +433,12 @@ Run `changex` (or `changex help`) for the full list:
     open     snapshot the baseline before anything edits the file
     seal     diff the edited file → reconstruct the tracked changes
 
-  Connect to an app
-    connect  wire ChangeX into Claude / ChatGPT / Cursor / Gemini / … (writes the config)
+  Connect to your apps
+    connect  wire ChangeX into your AI apps  (`connect all` = every installed one at once)
+
+  Diagnose & set up (macOS)
+    doctor     diagnose install + file-access (Full Disk Access)
+    quicklook  manage the Finder Quick Look preview for .changex & code files
 
   Extras
     shell    interactive Python shell with changex_core preloaded
