@@ -179,15 +179,17 @@ export function UpdatesPage({ onClose }: { onClose: () => void }) {
 
         <hr className="updates-rule" />
 
-        <h3 className="updates-h3">Use ChangeX in Claude</h3>
+        <h3 className="updates-h3">Use ChangeX in your AI apps</h3>
         <p className="updates-sub">
-          Registers the ChangeX tools with the <strong>Claude Desktop</strong> app so you can ask
-          Claude to open, edit, and save tracked documents. This runs automatically when the app
-          starts — use the button to re-run it. <em>Fully quit &amp; reopen Claude Desktop after.</em>
+          Registers the ChangeX tools with every installed app — <strong>Claude Code</strong>,
+          the <strong>Claude Desktop</strong> app, <strong>Cursor</strong>, and <strong>Gemini</strong>
+          {" "}— so you can ask them to open, edit, and save tracked documents. This runs
+          automatically when the app starts; use the button to re-run it.{" "}
+          <em>Fully quit &amp; reopen Claude Desktop after.</em>
         </p>
         {claudeMsg && <pre className="updates-notes">{claudeMsg}</pre>}
         <div className="updates-ql-row">
-          <button onClick={connectClaude}>Connect to Claude Desktop</button>
+          <button onClick={connectClaude}>Connect to my AI apps</button>
         </div>
 
         <div className="updates-foot">

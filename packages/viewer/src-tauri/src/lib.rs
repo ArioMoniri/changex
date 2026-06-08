@@ -255,12 +255,12 @@ fn open_security_settings() -> Result<(), String> {
     }
 }
 
-/// Register the changex MCP with the Claude Desktop app so the user can drive ChangeX from
-/// Claude (open/edit/save tracked docs). Delegates to `changex connect claude-desktop`, which
-/// is cross-platform (macOS/Windows/Linux) and idempotent.
+/// Register the changex MCP with EVERY installed local app — Claude Code, the Claude Desktop
+/// app, Cursor, the Gemini CLI — so the user can drive ChangeX from any of them. Delegates to
+/// `changex connect all`, which detects what's installed and is cross-platform + idempotent.
 #[tauri::command]
 fn connect_claude() -> Result<CliResult, String> {
-    run_changex(&["connect", "claude-desktop"])
+    run_changex(&["connect", "all"])
 }
 
 /// Tauri entry point wired from `main.rs`.
@@ -271,9 +271,9 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(|_app| {
-            // On launch, auto-register the changex MCP with Claude Desktop so the integration
-            // "just works" after installing the app — on macOS AND Windows. Idempotent: a no-op
-            // if already connected (no rewrite, no backup). Best-effort + off the UI thread.
+            // On launch, auto-register the changex MCP with every installed local app (Claude
+            // Code, Claude Desktop, Cursor, Gemini) so the integration "just works" after
+            // installing the app — macOS AND Windows. Idempotent no-op if already connected.
             std::thread::spawn(|| {
                 let _ = connect_claude();
             });

@@ -89,3 +89,21 @@ def test_target_names_cover_core_apps() -> None:
     names = target_names()
     for expected in ("claude-code", "claude-desktop", "chatgpt", "cursor", "gemini"):
         assert expected in names
+
+
+def test_connect_all_connects_detected_local_apps(tmp_path, monkeypatch, capsys) -> None:  # type: ignore[no-untyped-def]
+    """`changex connect all` (connect_all) writes the config of each detected local app."""
+    import json
+
+    from changex_core import connect as C
+
+    cfg = tmp_path / "claude_desktop_config.json"
+    monkeypatch.setattr(C, "_claude_desktop_config", lambda: cfg)
+    monkeypatch.setattr(C, "_claude_desktop_installed", lambda: True)
+    monkeypatch.setattr(C.shutil, "which", lambda name: None)   # no claude CLI
+    monkeypatch.setattr(C.Path, "home", lambda: tmp_path)        # no ~/.cursor or ~/.gemini
+
+    C.connect_all()
+
+    assert "changex" in json.loads(cfg.read_text())["mcpServers"]
+    assert "Connected: Claude Desktop" in capsys.readouterr().out

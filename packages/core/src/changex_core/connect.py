@@ -181,6 +181,55 @@ def _connect_cline() -> None:
     print(json.dumps(block, indent=2))
 
 
+def _claude_desktop_installed() -> bool:
+    """True if the Claude **Desktop** app looks installed (so we should write its config)."""
+    if _claude_desktop_config().parent.exists():
+        return True
+    if sys.platform == "darwin":
+        return Path("/Applications/Claude.app").exists()
+    if os.name == "nt":
+        local = os.environ.get("LOCALAPPDATA", "")
+        return bool(local) and (Path(local) / "AnthropicClaude").exists()
+    return False
+
+
+def connect_all() -> None:
+    """Connect ChangeX to every LOCAL stdio client that looks installed (idempotent).
+
+    This is what the ChangeX Viewer runs on launch, so installing the app wires the changex
+    MCP into Claude Code, the Claude Desktop app, Cursor, and the Gemini CLI automatically —
+    no per-app command. Each client is best-effort: a failure on one never blocks the rest.
+    """
+    print(ui.ok("Connecting ChangeX to your installed local apps…"))
+    done: list[str] = []
+
+    def attempt(label: str, fn: Callable[[], None]) -> None:
+        try:
+            fn()
+            done.append(label)
+        except ConnectError as exc:
+            print(ui.warn(f"{label}: {exc}"))
+
+    if shutil.which("claude"):
+        attempt("Claude Code", _connect_claude_code)
+    if _claude_desktop_installed():
+        attempt("Claude Desktop", lambda: _connect_config_file(
+            "Claude Desktop", _claude_desktop_config(),
+            restart="fully quit & reopen Claude Desktop (⌘Q) to load it.",
+        ))
+    if (Path.home() / ".cursor").exists():
+        attempt("Cursor", lambda: _connect_config_file("Cursor", Path.home() / ".cursor/mcp.json"))
+    if (Path.home() / ".gemini").exists():
+        attempt("Gemini CLI", lambda: _connect_config_file(
+            "Gemini CLI", Path.home() / ".gemini/settings.json"))
+
+    print()
+    if done:
+        print(ui.ok(f"Connected: {', '.join(done)}."))
+    else:
+        print(ui.warn("No supported local apps detected — run `changex connect` to see the options."))
+
+
 @dataclass(frozen=True)
 class _Target:
     summary: str
@@ -189,6 +238,10 @@ class _Target:
 
 def _targets() -> dict[str, _Target]:
     return {
+        "all": _Target(
+            "ALL installed local apps (Claude Code + Desktop, Cursor, Gemini) in one go",
+            connect_all,
+        ),
         "claude-code": _Target("Claude Code (terminal/IDE) — registers at user scope", _connect_claude_code),
         "claude-desktop": _Target(
             "Claude Desktop app — writes its config (restart the app after)",
