@@ -87,39 +87,91 @@ def render_html(
     title: str = "ChangeX review",
     header: dict[str, Any] | None = None,
 ) -> str:
-    """Render the journal as a GitKraken-style commit graph (self-contained HTML)."""
+    """Render the journal as a GitKraken-style commit graph (self-contained HTML).
+
+    Each document **part** (node) is a coloured **lane** — a continuous "follow line" you can
+    trace down the graph through every edit that touched it. Non-overlapping parts share a
+    lane (git-graph layout), so the graph stays narrow.
+    """
     evs = list(events)
+
+    # part key per row, first-seen order, colour, and the row-span each part occupies.
+    part_of = [(ev.target.node_id or ev.target.path or "doc") for ev in evs]
+    order: list[str] = []
+    for k in part_of:
+        if k not in order:
+            order.append(k)
+    part_color = {k: _LANE_COLORS[i % len(_LANE_COLORS)] for i, k in enumerate(order)}
+    span: dict[str, list[int]] = {}
+    for r, k in enumerate(part_of):
+        span.setdefault(k, [r, r])[1] = r
+
+    # Each part gets its OWN permanent lane (first-appearance order) so its "follow line" is a
+    # stable colour you can trace top-to-bottom through every edit that touched it.
+    lane_of: dict[str, int] = {k: i for i, k in enumerate(order)}
+    n_lanes = max(1, len(order))
+    lanes_parts: dict[int, list[tuple[str, int, int]]] = {
+        lane: [(k, span[k][0], span[k][1])] for k, lane in lane_of.items()
+    }
+
+    def lane_x(lane: int) -> int:
+        return 14 + lane * 20
+
+    rail_w = lane_x(n_lanes - 1) + 28
 
     authors: dict[str, int] = {}
     first_ts = last_ts = ""
     rows: list[str] = []
-    for ev in evs:
+    for r, ev in enumerate(evs):
         prov = ev.provenance
         agent = prov.agent or "unknown"
         authors[agent] = authors.get(agent, 0) + 1
-        color = _lane_color(agent)
         if not first_ts:
             first_ts = ev.ts
         last_ts = ev.ts
         human, raw = _fmt_ts(ev.ts)
-        part = ev.target.path or ev.target.node_id
+        my_part = part_of[r]
+        my_lane = lane_of[my_part]
+        pcolor = part_color[my_part]
+
+        # rail: a vertical follow-line for every lane present at this row + a dot on my lane.
+        cell: list[str] = []
+        for lane in range(n_lanes):
+            occ = next((p for p in lanes_parts.get(lane, []) if p[1] <= r <= p[2]), None)
+            if occ is None:
+                continue
+            x, col = lane_x(lane), part_color[occ[0]]
+            is_first, is_last = r == occ[1], r == occ[2]
+            if is_first and is_last:
+                pass  # lone commit — just the dot
+            elif is_first:
+                cell.append(f'<i class="ln" style="left:{x}px;top:20px;bottom:0;background:{col}"></i>')
+            elif is_last:
+                cell.append(f'<i class="ln" style="left:{x}px;top:0;height:20px;background:{col}"></i>')
+            else:
+                cell.append(f'<i class="ln" style="left:{x}px;top:0;bottom:0;background:{col}"></i>')
+            if lane == my_lane:
+                cell.append(f'<span class="node" style="left:{x}px;background:{pcolor}"></span>')
+
         reverted = getattr(ev, "reverted", False)
         cls = "commit reverted" if reverted else "commit"
         short = (ev.hash or "")[:7] or f"seq{ev.seq}"
+        acolor = _lane_color(agent)
+        part_label = ev.target.path or ev.target.node_id
         rationale = (
             f'<span class="rationale">&ldquo;{_esc(prov.rationale)}&rdquo;</span>'
             if prov.rationale else ""
         )
         rows.append(
-            f'<li class="{cls}" style="--c:{color}">'
-            f'<div class="rail"><span class="node"></span></div>'
+            f'<li class="{cls}" style="--c:{pcolor}">'
+            f'<div class="rail">{"".join(cell)}</div>'
             f'<div class="card">'
             f'<div class="r1"><span class="hash">{_esc(short)}</span>'
             f'<span class="kind">{_esc(ev.op.get("kind"))}</span>'
-            f'<span class="part">{_esc(part)}</span></div>'
+            f'<span class="part">{_esc(part_label)}</span></div>'
             f'<div class="diff">{_op_summary_html(ev)}</div>'
             f'<div class="m"><span class="who">'
-            f'<span class="av" style="background:{color}">{_esc(_initials(agent))}</span>'
+            f'<span class="av" style="background:{acolor}">{_esc(_initials(agent))}</span>'
             f"{_esc(agent)}</span>"
             f'<span title="{_esc(raw)}">{_esc(human)}</span>'
             f"{(' &middot; ' + rationale) if rationale else ''}</div>"
@@ -133,6 +185,7 @@ def render_html(
     disp_title = filename or title
 
     sub = [f"<b>{len(evs)}</b> change{'' if len(evs) == 1 else 's'}"]
+    sub.append(f"<b>{len(order)}</b> part{'' if len(order) == 1 else 's'}")
     if fmt:
         sub.append(f"<b>{_esc(fmt)}</b>")
     if first_ts:
@@ -156,7 +209,7 @@ def render_html(
         + "</div>"
     )
     graph = (
-        f'<ol class="kx">{"".join(rows)}</ol>'
+        f'<ol class="kx" style="--rw:{rail_w}px">{"".join(rows)}</ol>'
         if rows else '<div class="empty">No changes recorded.</div>'
     )
     return (
@@ -256,15 +309,12 @@ body{margin:0;font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
 .av{width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;
     justify-content:center;font-size:9px;font-weight:700;color:#10121a}
 ol.kx{list-style:none;margin:0;padding:6px 0 24px}
-li.commit{display:grid;grid-template-columns:46px 1fr;align-items:stretch}
-.rail{position:relative;width:46px}
-.rail::before{content:"";position:absolute;left:23px;top:0;bottom:0;width:2px;
-              background:#2c2f39;transform:translateX(-1px)}
-li.commit:first-child .rail::before{top:18px}
-li.commit:last-child .rail::before{bottom:auto;height:18px}
-.node{position:absolute;left:23px;top:14px;width:13px;height:13px;border-radius:50%;
-      transform:translateX(-50%);border:3px solid #16181d;
-      background:var(--c);box-shadow:0 0 0 1px var(--c)}
+li.commit{display:grid;grid-template-columns:var(--rw,46px) 1fr;align-items:stretch}
+.rail{position:relative;min-height:44px}
+.ln{position:absolute;width:2px;transform:translateX(-1px)}
+.node{position:absolute;top:13px;width:13px;height:13px;border-radius:50%;
+      transform:translateX(-50%);border:3px solid #16181d;background:var(--c);
+      box-shadow:0 0 0 1px rgba(0,0,0,.25)}
 .card{padding:9px 16px 13px 4px;border-bottom:1px solid #1f2229}
 li.commit:hover .card{background:#1b1e25}
 .r1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -287,7 +337,7 @@ del{background:rgba(248,81,73,.20);color:#ff9d96;border-radius:3px;padding:0 3px
   .kx-head{background:linear-gradient(180deg,#f6f7f9,#fff);border-color:#e6e8ec}
   .kx-title{color:#11151a}.kx-sub{color:#6b7280}.kx-sub b{color:#374151}
   .kx-chip{background:#f1f3f5;border-color:#e2e5ea;color:#374151}
-  .rail::before{background:#e2e5ea}.node{border-color:#fff}
+  .node{border-color:#fff}
   .card{border-color:#eef0f3}li.commit:hover .card{background:#f8f9fb}
   .kind{background:#f1f3f5;border-color:#e2e5ea;color:#4b5563}.part{color:#9aa1ad}
   .diff{color:#1f2329}ins{color:#1a7f37}del{color:#b42318}.m{color:#6b7280}.who{color:#374151}

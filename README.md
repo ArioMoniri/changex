@@ -297,29 +297,42 @@ Add to `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global) — Cline u
 ```bash
 changex review report.changex --out review.html                            # 🐙 GitKraken-style commit graph
 changex log    report.changex                                              # 🌿 git-log of every edit (--oneline)
+changex rewind report.changex original.docx --to 3 --out phase3.docx        # ⏪ the doc at any earlier phase
 changex view   report.changex --doc report.tracked.docx                     # 🌐 live local page (accept/reject)
 changex preview report.changex --out preview.html                           # 🔎 self-contained HTML (any platform)
 #  …or just open report.tracked.docx in Word — real native track changes 🖊️
 ```
 
 Because the `.changex` journal is an **append-only, hash-chained** log of edits — each op is a
-"commit" (`hash` ⭢ `prev_hash`) stamped with **author + timestamp** — `changex review` renders it
-as a **GitKraken-style commit graph** (a coloured rail of commits, per-author lanes, redline diff,
-the document part touched, and when). The same graph shows in the **ChangeX Viewer** app. For the
-terminal, `changex log` (or `--oneline`) prints the history git-style.
+"commit" (`hash` ⭢ `prev_hash`) stamped with **author + timestamp** — ChangeX gives you a git-like
+history of any document:
+
+- **🐙 `changex review` → a GitKraken-style commit graph.** Every document **part** (paragraph)
+  is its own coloured **lane** — a continuous *follow line* you can trace down the graph through
+  every edit that touched it. Each commit shows its hash, op kind, the part, the redline (red
+  delete / green insert), the author avatar, the timestamp, and the rationale. The **same graph
+  shows in the ChangeX Viewer** app and `changex view`.
+- **⏪ `changex rewind` → time-travel.** Rebuild the document as it was at *any* earlier phase:
+  `--to <seq|hash>` replays the baseline + the first N edits (`--to 0` = the clean baseline).
+- **🌿 `changex log` → the terminal view** (`--oneline` too).
 
 <p align="center">
   <img src="docs/assets/commit-graph.png" width="760"
-       alt="ChangeX commit graph — every edit as a commit on a coloured graph rail: hash, op kind, the document part touched, the redline (red delete / green insert), the author avatar, the timestamp, and the rationale; multiple authors fan out into per-author lane colours">
+       alt="ChangeX commit graph — every edit is a commit on a coloured graph rail; each document part is its own lane (a follow line) you can trace through its edits, with hash, op kind, the part, the redline, author avatar, timestamp, and rationale">
 </p>
 
 ```text
 $ changex log "Q3 Launch Brief.changex" --oneline
-f1a172d  style.change  Normal → Title                                  (Gemini, 2026-06-08 09:12)
-eb6b40a  text.replace  by the end of the quarter → by September 30     (Claude, 2026-06-08 09:13)
-96914e5  text.replace  approximately fifty thousand dollars → $48,000  (GPT-4o, 2026-06-08 11:02)
-8188b0a  text.insert   + across three regions                          (Sam,    2026-06-08 14:05)
-1438268  text.replace  reduce risk → minimize downtime                 (Claude, 2026-06-08 14:06)
+d27c085  text.replace  by the end of the quarter → by September 30          (Claude, 2026-06-08 09:12)
+3edcc9f  text.insert   + across three regions                              (GPT-4o, 2026-06-08 09:31)
+671985a  text.replace  all of our customers worldwide → enterprise …       (Claude, 2026-06-08 10:02)
+3a93438  text.replace  approximately fifty thousand dollars → $48,000      (Sam,    2026-06-08 11:20)
+852ec26  text.replace  reduce risk → minimize downtime                     (GPT-4o, 2026-06-08 13:46)
+f39f63e  style.change  Normal → Title                                      (Gemini, 2026-06-08 14:05)
+99be3fa  text.replace  redesigned dashboard → redesigned analytics …       (Claude, 2026-06-08 16:41)
+
+$ changex rewind "Q3 Launch Brief.changex" original.docx --to 3 --out phase3.docx
+✓ rewound to seq 3 (671985a54) — 3 of 7 edits applied
 ```
 
 `changex preview` renders **any** file to a self-contained HTML page — a `.changex` journal
