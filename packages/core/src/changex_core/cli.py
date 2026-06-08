@@ -33,7 +33,7 @@ from changex_core.ops.vocabulary import op_from_dict, target_node_id
 from changex_core.passive import open_passive, seal_passive
 from changex_core.paths import safe_path
 from changex_core.render.document import render_document_html
-from changex_core.render.html import render_html, render_markdown
+from changex_core.render.html import render_html, render_log, render_markdown
 from changex_core.render.server import DEFAULT_PORT, serve
 
 
@@ -151,6 +151,7 @@ def cmd_review(args: argparse.Namespace) -> int:
     changex_path = safe_path(args.changex, must_exist=True, allow_suffixes=(".changex", ".jsonl"))
     journal = Journal.open(str(changex_path))
     events = journal.active_events()
+    hdr = journal.header.to_dict()
     doc_path = getattr(args, "doc", None)
     if args.format == "markdown":
         report = render_markdown(events)
@@ -160,16 +161,24 @@ def cmd_review(args: argparse.Namespace) -> int:
             # Show the changes inline in the document's own outline.
             report = render_document_html(str(doc), title="ChangeX review", events=events)
         else:
-            # The in-document outline view is docx-only today; fall back to the op log.
-            report = render_html(events)
+            # The in-document outline view is docx-only today; fall back to the commit graph.
+            report = render_html(events, header=hdr)
     else:
-        report = render_html(events)
+        report = render_html(events, header=hdr)
     if args.out:
         out = safe_path(args.out)
         out.write_text(report, encoding="utf-8")
         print(f"review -> {out}")
     else:
         print(report)
+    return 0
+
+
+def cmd_log(args: argparse.Namespace) -> int:
+    """Print a git-log-style history of a .changex journal (each edit = a commit)."""
+    changex_path = safe_path(args.changex, must_exist=True, allow_suffixes=(".changex", ".jsonl"))
+    journal = Journal.open(str(changex_path))
+    print(render_log(journal.active_events(), oneline=getattr(args, "oneline", False)))
     return 0
 
 
@@ -322,7 +331,8 @@ _HELP_GROUPS = [
         "Track & review",
         [
             ("track", "apply scripted ops to a doc → tracked file + .changex"),
-            ("review", "render an HTML / markdown redline of the changes"),
+            ("review", "render the changes as a GitKraken-style commit graph (HTML)"),
+            ("log", "git-log-style history of the journal (every edit = a commit)"),
             ("preview", "render ANY file to self-contained HTML (redline or code)"),
             ("view", "serve a localhost review page — accept / reject live"),
             ("verify", "check a .changex hash chain + baseline"),
@@ -425,6 +435,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     review.add_argument("--out", help="write report to this path (else stdout)")
     review.set_defaults(func=cmd_review)
+
+    log_p = sub.add_parser("log", help="git-log-style history of a .changex journal")
+    log_p.add_argument("changex", help=".changex journal")
+    log_p.add_argument("--oneline", action="store_true", help="one commit per line")
+    log_p.set_defaults(func=cmd_log)
 
     preview = sub.add_parser(
         "preview",

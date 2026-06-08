@@ -83,3 +83,23 @@ def test_preview_plain_fallback_without_pygments(tmp_path: Path, monkeypatch: py
 def test_preview_missing_file_raises(tmp_path: Path) -> None:
     with pytest.raises(Exception):
         preview_html(tmp_path / "nope.py")
+
+
+def test_log_and_kraken_graph_render(tmp_path: Path) -> None:
+    """changex log (git-style) and the GitKraken-style commit graph render from a journal."""
+    from changex_core.journal.journal import Journal
+    from changex_core.render.html import render_html, render_log
+
+    journal_path = _real_journal(tmp_path)
+    j = Journal.open(str(journal_path))
+    events = j.active_events()
+
+    log = render_log(events, oneline=True)
+    assert "text.replace" in log and "quick" in log and "swift" in log
+    full = render_log(events, oneline=False)
+    assert "commit " in full and "Author:" in full and "Date:" in full
+
+    graph = render_html(events, header=j.header.to_dict())
+    assert "kx-head" in graph and 'class="commit"' in graph  # the commit graph
+    assert "<ins>" in graph and "<del>" in graph              # the redline
+    assert ".rail" in graph and ".node" in graph              # the graph rail + dots

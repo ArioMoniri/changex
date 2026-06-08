@@ -295,11 +295,18 @@ Add to `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global) — Cline u
 `changex seal` prints these with your real paths — or run them yourself:
 
 ```bash
-changex review report.changex --doc report.tracked.docx --out review.html   # 📄 inline in the doc's outline
+changex review report.changex --out review.html                            # 🐙 GitKraken-style commit graph
+changex log    report.changex                                              # 🌿 git-log of every edit (--oneline)
 changex view   report.changex --doc report.tracked.docx                     # 🌐 live local page (accept/reject)
 changex preview report.changex --out preview.html                           # 🔎 self-contained HTML (any platform)
 #  …or just open report.tracked.docx in Word — real native track changes 🖊️
 ```
+
+Because the `.changex` journal is an **append-only, hash-chained** log of edits — each op is a
+"commit" (`hash` ⭢ `prev_hash`) stamped with **author + timestamp** — `changex review` renders it
+as a **GitKraken-style commit graph** (a coloured rail of commits, per-author lanes, redline diff,
+the document part touched, and when). The same graph shows in the **ChangeX Viewer** app. For the
+terminal, `changex log` (or `--oneline`) prints the history git-style.
 
 `changex preview` renders **any** file to a self-contained HTML page — a `.changex` journal
 as a redline, or a **source-code/text file with syntax highlighting** (Pygments). It's the
