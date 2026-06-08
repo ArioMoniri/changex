@@ -103,3 +103,31 @@ def test_log_and_kraken_graph_render(tmp_path: Path) -> None:
     assert "kx-head" in graph and 'class="commit"' in graph  # the commit graph
     assert "<ins>" in graph and "<del>" in graph              # the redline
     assert ".rail" in graph and ".node" in graph              # the graph rail + dots
+
+
+def test_rewind_reconstructs_earlier_phases(tmp_path: Path) -> None:
+    """`changex rewind --to N` rebuilds the document at an earlier phase of its history."""
+    docx = pytest.importorskip("docx")
+    from docx.oxml.ns import qn
+
+    from changex_core.cli import main
+
+    journal = _real_journal(tmp_path)          # one edit: replace "quick" → "swift"
+    base = tmp_path / "base.docx"
+
+    def revisions(path: Path) -> int:
+        d = docx.Document(str(path))
+        return sum(
+            1
+            for para in d.paragraphs
+            for el in para._p.iter()
+            if el.tag in (qn("w:ins"), qn("w:del"))
+        )
+
+    out0 = tmp_path / "rw0.docx"
+    assert main(["rewind", str(journal), str(base), "--to", "0", "--out", str(out0)]) == 0
+    assert revisions(out0) == 0                # phase 0 = clean baseline
+
+    out1 = tmp_path / "rw1.docx"
+    assert main(["rewind", str(journal), str(base), "--to", "1", "--out", str(out1)]) == 0
+    assert revisions(out1) > 0                 # phase 1 carries the edit

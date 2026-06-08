@@ -174,6 +174,52 @@ def cmd_review(args: argparse.Namespace) -> int:
     return 0
 
 
+def _rewind_select(events: list, target: str | None) -> list:  # type: ignore[type-arg]
+    """The prefix of ``events`` up to and including ``target`` (a seq number or hash prefix)."""
+    if target is None or str(target).lower() in ("latest", "head"):
+        return list(events)
+    t = str(target)
+    if t.isdigit():
+        n = int(t)
+        return [e for e in events if e.seq <= n]
+    for i, e in enumerate(events):
+        if (e.hash or "").startswith(t):
+            return events[: i + 1]
+    raise ValueError(f"no commit matches {target!r} — use a seq number or a hash prefix")
+
+
+def cmd_rewind(args: argparse.Namespace) -> int:
+    """Reconstruct the document as it was at a point in its edit history (git checkout).
+
+    Replays the baseline + the first N edits (up to ``--to <seq|hash>``) into a tracked
+    document, so any earlier "phase" of the file can be regenerated from the journal.
+    """
+    changex_path = safe_path(args.changex, must_exist=True, allow_suffixes=(".changex", ".jsonl"))
+    journal = Journal.open(str(changex_path))
+    events = list(journal.active_events())
+    try:
+        selected = _rewind_select(events, args.to)
+    except ValueError as exc:
+        print(ui.warn(str(exc)))
+        return 2
+
+    baseline = safe_path(args.baseline, must_exist=True, allow_suffixes=SUPPORTED_SUFFIXES)
+    out = safe_path(args.out, allow_suffixes=(baseline.suffix.lower(),))
+    adapter = load_adapter(str(baseline), author=DEFAULT_AUTHOR)
+    baseline_model = adapter.to_model()
+    adapter.set_model(baseline_model)
+    for event in selected:
+        adapter.apply(op_from_dict(event.op))
+    adapter.save(str(out))
+
+    where = "baseline (0 edits)" if not selected else (
+        f"seq {selected[-1].seq} ({(selected[-1].hash or '')[:9]})"
+    )
+    print(ui.ok(f"rewound to {where} — {len(selected)} of {len(events)} edits applied"))
+    print(ui.field("out", str(out)))
+    return 0
+
+
 def cmd_log(args: argparse.Namespace) -> int:
     """Print a git-log-style history of a .changex journal (each edit = a commit)."""
     changex_path = safe_path(args.changex, must_exist=True, allow_suffixes=(".changex", ".jsonl"))
@@ -333,6 +379,7 @@ _HELP_GROUPS = [
             ("track", "apply scripted ops to a doc → tracked file + .changex"),
             ("review", "render the changes as a GitKraken-style commit graph (HTML)"),
             ("log", "git-log-style history of the journal (every edit = a commit)"),
+            ("rewind", "reconstruct the document at any earlier phase (git checkout)"),
             ("preview", "render ANY file to self-contained HTML (redline or code)"),
             ("view", "serve a localhost review page — accept / reject live"),
             ("verify", "check a .changex hash chain + baseline"),
@@ -440,6 +487,18 @@ def build_parser() -> argparse.ArgumentParser:
     log_p.add_argument("changex", help=".changex journal")
     log_p.add_argument("--oneline", action="store_true", help="one commit per line")
     log_p.set_defaults(func=cmd_log)
+
+    rewind = sub.add_parser(
+        "rewind", help="reconstruct the document at an earlier phase (git checkout)"
+    )
+    rewind.add_argument("changex", help=".changex journal")
+    rewind.add_argument("baseline", help="the ORIGINAL (pre-edit) document to replay onto")
+    rewind.add_argument(
+        "--to", required=True, metavar="SEQ|HASH",
+        help="rewind through this commit (a seq number, a hash prefix, or 0 for the baseline)",
+    )
+    rewind.add_argument("--out", required=True, help="output document (same extension as baseline)")
+    rewind.set_defaults(func=cmd_rewind)
 
     preview = sub.add_parser(
         "preview",
