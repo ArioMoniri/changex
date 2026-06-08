@@ -308,6 +308,20 @@ as a **GitKraken-style commit graph** (a coloured rail of commits, per-author la
 the document part touched, and when). The same graph shows in the **ChangeX Viewer** app. For the
 terminal, `changex log` (or `--oneline`) prints the history git-style.
 
+<p align="center">
+  <img src="docs/assets/commit-graph.png" width="760"
+       alt="ChangeX commit graph — every edit as a commit on a coloured graph rail: hash, op kind, the document part touched, the redline (red delete / green insert), the author avatar, the timestamp, and the rationale; multiple authors fan out into per-author lane colours">
+</p>
+
+```text
+$ changex log "Q3 Launch Brief.changex" --oneline
+f1a172d  style.change  Normal → Title                                  (Gemini, 2026-06-08 09:12)
+eb6b40a  text.replace  by the end of the quarter → by September 30     (Claude, 2026-06-08 09:13)
+96914e5  text.replace  approximately fifty thousand dollars → $48,000  (GPT-4o, 2026-06-08 11:02)
+8188b0a  text.insert   + across three regions                          (Sam,    2026-06-08 14:05)
+1438268  text.replace  reduce risk → minimize downtime                 (Claude, 2026-06-08 14:06)
+```
+
 `changex preview` renders **any** file to a self-contained HTML page — a `.changex` journal
 as a redline, or a **source-code/text file with syntax highlighting** (Pygments). It's the
 engine behind the macOS Quick Look extension and the Windows preview handler below, so a
