@@ -1,6 +1,6 @@
 {
   "name": "changex-viewer",
-  "version": "0.1.19",
+  "version": "0.1.20",
   "description": "Tauri + React desktop review app for ChangeX .changex provenance journals.",
   "type": "module",
   "private": true,

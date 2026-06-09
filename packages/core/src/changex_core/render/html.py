@@ -201,11 +201,20 @@ def render_html(
         for a, n in sorted(authors.items(), key=lambda kv: -kv[1])
     )
 
+    legend = (
+        '<div class="kx-legend">'
+        '<svg width="14" height="22" viewBox="0 0 14 22" aria-hidden="true">'
+        '<line x1="7" y1="3" x2="7" y2="19" stroke="currentColor" stroke-width="2"/>'
+        '<circle cx="7" cy="5" r="3" fill="#4dd0e1"/><circle cx="7" cy="17" r="3" fill="#4dd0e1"/></svg>'
+        "Each lane is a document part — a line follows that part through its edits"
+        "</div>"
+    ) if rows else ""
     body = (
         f'<div class="kx-head"><h1 class="kx-title"><span class="dot"></span>'
         f"{_esc(disp_title)}</h1>"
         f'<div class="kx-sub">{" &middot; ".join(sub)}</div>'
         + (f'<div class="kx-authors">{chips}</div>' if chips else "")
+        + legend
         + "</div>"
     )
     graph = (
@@ -304,6 +313,8 @@ body{margin:0;font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
 .kx-sub b{color:#c7ccd6;font-weight:600}
 .kx-sub code{font:11px ui-monospace,SFMono-Regular,Menlo,monospace;color:#9aa0ad}
 .kx-authors{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.kx-legend{display:flex;align-items:center;gap:7px;margin-top:9px;font-size:11px;color:#7f8696}
+.kx-legend svg{flex:none;color:#5a5f6b}
 .kx-chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#cfd4de;
          background:#23262e;border:1px solid #2f333d;border-radius:999px;padding:2px 9px 2px 3px}
 .av{width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;
