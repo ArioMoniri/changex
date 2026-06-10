@@ -5,10 +5,13 @@ import {
   isTauri,
   loadJournal,
   loadSample,
+  pickBaselinePath,
   pickDocPath,
   pickJournalPath,
   renderDocument,
   renderReview,
+  revealInFiles,
+  rewindTo,
   verifyJournal,
 } from "./api";
 import { ProvenanceTimeline } from "./components/ProvenanceTimeline";
@@ -29,8 +32,16 @@ export default function App() {
   const [docPath, setDocPath] = useState<string | null>(null);
   const [docHtml, setDocHtml] = useState<string>("");
   const [docRendering, setDocRendering] = useState(false);
+  const [baselinePath, setBaselinePath] = useState<string | null>(null);
+  const [rewindMsg, setRewindMsg] = useState<string>("");
 
   const tauri = isTauri();
+
+  // The document node_id (paragraph) the selected commit changed — drives the doc-view focus.
+  const focusNode = useMemo(() => {
+    if (selectedSeq == null || !journal) return null;
+    return journal.events.find((e) => e.seq === selectedSeq)?.target?.node_id ?? null;
+  }, [selectedSeq, journal]);
 
   // Whenever a journal loads: render its commit graph, verify the chain, and try to find
   // the tracked document so the "Document" view can open automatically.
@@ -42,6 +53,8 @@ export default function App() {
     setDocHtml("");
     setDocPath(null);
     setView("graph");
+    setBaselinePath(null);
+    setRewindMsg("");
     (async () => {
       try {
         const [html, ver] = await Promise.all([
@@ -92,6 +105,39 @@ export default function App() {
       setView("doc");
     }
   }, []);
+
+  // Selecting a commit: highlight it, and — if the document is available — jump to the
+  // Document view and focus the exact paragraph that commit changed.
+  const selectCommit = useCallback(
+    (seq: number) => {
+      setSelectedSeq(seq);
+      setRewindMsg("");
+      if (docPath) setView("doc");
+    },
+    [docPath]
+  );
+
+  // "Rewind to here": reconstruct the document as of the selected commit. Needs the ORIGINAL
+  // pre-edit document — ask for it once, then remember it for the session.
+  const rewindHere = useCallback(async () => {
+    if (!journal || selectedSeq == null) return;
+    setError("");
+    try {
+      let base = baselinePath;
+      if (!base) {
+        base = await pickBaselinePath();
+        if (!base) return;
+        setBaselinePath(base);
+      }
+      setRewindMsg("Rewinding…");
+      const out = await rewindTo(journal, base, selectedSeq);
+      await revealInFiles(out);
+      setRewindMsg(`Saved ${out.split("/").pop()} — revealed in Finder`);
+    } catch (e) {
+      setRewindMsg("");
+      setError(String(e));
+    }
+  }, [journal, selectedSeq, baselinePath]);
 
   const openFile = useCallback(async () => {
     setError("");
@@ -206,7 +252,7 @@ export default function App() {
               <ProvenanceTimeline
                 events={journal.events}
                 selectedSeq={selectedSeq}
-                onSelect={setSelectedSeq}
+                onSelect={selectCommit}
               />
             </section>
             <section className="pane pane-redline">
@@ -225,14 +271,26 @@ export default function App() {
                     Document
                   </button>
                 </div>
-                <button className="ghost small" onClick={openDoc} title="Choose the tracked .docx">
-                  {docPath ? "Change document…" : "Open document…"}
-                </button>
+                <div className="pane-actions">
+                  {rewindMsg && <span className="pane-status">{rewindMsg}</span>}
+                  {selectedSeq != null && tauri && (
+                    <button
+                      className="ghost small"
+                      onClick={rewindHere}
+                      title="Reconstruct the document as it was at this commit"
+                    >
+                      ⏪ Rewind to #{selectedSeq}
+                    </button>
+                  )}
+                  <button className="ghost small" onClick={openDoc} title="Choose the tracked .docx">
+                    {docPath ? "Change document…" : "Open document…"}
+                  </button>
+                </div>
               </div>
               {view === "graph" ? (
                 <RedlinePanel html={redline} loading={rendering} />
               ) : docPath ? (
-                <RedlinePanel html={docHtml} loading={docRendering} />
+                <RedlinePanel html={docHtml} loading={docRendering} focusNode={focusNode} />
               ) : (
                 <div className="redline-status">
                   See every tracked change <em>in the document itself</em>. Open the tracked

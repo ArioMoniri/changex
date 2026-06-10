@@ -93,7 +93,9 @@ def render_html(
     trace down the graph through every edit that touched it. Non-overlapping parts share a
     lane (git-graph layout), so the graph stays narrow.
     """
-    evs = list(events)
+    # Chronological order (oldest commit first). Append order is already time order; sort on
+    # the recorded timestamp (seq as tiebreak) so the graph reads correctly even if unsorted.
+    evs = sorted(events, key=lambda ev: (ev.ts or "", ev.seq))
 
     # part key per row, first-seen order, colour, and the row-span each part occupies.
     part_of = [(ev.target.node_id or ev.target.path or "doc") for ev in evs]

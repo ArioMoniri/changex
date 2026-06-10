@@ -35,14 +35,16 @@ interface Props {
   onSelect: (seq: number) => void;
 }
 
-/** Vertical provenance timeline: one entry per journal event. */
+/** Vertical provenance timeline: one entry per journal event, oldest first. */
 export function ProvenanceTimeline({ events, selectedSeq, onSelect }: Props) {
   if (events.length === 0) {
     return <p className="empty">No events in this journal.</p>;
   }
+  // Chronological: oldest edit first (append order is time order; sort on ts to be safe).
+  const ordered = [...events].sort((a, b) => (a.ts ?? "").localeCompare(b.ts ?? "") || a.seq - b.seq);
   return (
     <ol className="timeline">
-      {events.map((ev) => {
+      {ordered.map((ev) => {
         const p = ev.provenance;
         const who = p.agent ?? p.client_name ?? "unknown";
         const selected = ev.seq === selectedSeq;

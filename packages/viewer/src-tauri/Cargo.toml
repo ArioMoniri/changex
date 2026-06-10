@@ -23,6 +23,8 @@ tauri-plugin-updater = "2.0.0"
 tauri-plugin-process = "2.0.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+# Native translucent window material: NSVisualEffectView on macOS, Mica/Acrylic on Windows.
+window-vibrancy = "0.5"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified,

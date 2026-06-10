@@ -40,7 +40,10 @@ def test_document_html_renders_changes_inline_in_the_outline(tmp_path: Path) -> 
     # surrounding document context is rendered, not just the changed substrings
     assert "fox" in html and "Title Heading" in html
     # a Heading-1 paragraph renders as a heading element (document structure preserved)
-    assert "<h2>" in html
+    assert "<h2" in html
+    # paragraphs carry their node_id as an anchor so the Viewer can scroll to / highlight the
+    # exact paragraph a selected commit changed
+    assert 'id="cx-node-p:20000001"' in html
     # provenance tooltip carries the author
     assert "claude-opus-4-8" in html
 

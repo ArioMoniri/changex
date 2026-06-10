@@ -18,6 +18,10 @@ from changex_core.journal.events import Event
 from changex_core.paths import safe_path
 
 _W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+# Word's 2010 namespace carries w14:paraId — the stable per-paragraph id ChangeX uses as the
+# node_id (``p:<paraId>``). Tagging each rendered paragraph with it lets the Viewer scroll to,
+# and highlight, the exact paragraph a selected commit changed.
+_W14 = "http://schemas.microsoft.com/office/word/2010/wordml"
 
 
 def _q(tag: str) -> str:
@@ -43,6 +47,10 @@ del { background: #ffeef0; color: #9b1c2c; text-decoration: line-through; border
 ins, del { padding: 0 .12rem; cursor: help; }
 .badge { font-size: .68rem; color: #8a5a00; background: #fff4d6; border: 1px solid #f0d88a;
          border-radius: 10px; padding: .03rem .4rem; margin-left: .4rem; vertical-align: middle; }
+/* The paragraph a selected commit touched — the Viewer adds this to scroll + highlight it. */
+.cx-focus { background: #fff7cc; box-shadow: 0 0 0 6px #fff7cc; border-radius: 3px;
+            animation: cx-pulse 1.1s ease-out; scroll-margin: 40vh; }
+@keyframes cx-pulse { from { background: #ffe27a; box-shadow: 0 0 0 9px #ffe27a; } }
 .changelog { margin-top: 2rem; }
 .changelog h2 { font-size: .95rem; color: #555; }
 .changelog ol { padding-left: 1.2rem; color: #444; font-size: .86rem; }
@@ -90,7 +98,10 @@ def _mark(child, kind: str) -> str:
 
 def _changelog(events: Iterable[Event]) -> str:
     items: list[str] = []
-    for e in events:
+    # Chronological: oldest edit first. Append order is already time order, but sort on the
+    # recorded timestamp (seq as tiebreak) so the log is correct even if events arrive unsorted.
+    ordered = sorted(events, key=lambda e: (e.provenance.ts or "", e.seq))
+    for e in ordered:
         who = e.provenance.agent or "unknown"
         why = f' &mdash; &ldquo;{_esc(e.provenance.rationale)}&rdquo;' if e.provenance.rationale else ""
         items.append(
@@ -141,7 +152,9 @@ def render_document_html(
         content = "".join(inline)
         if not content.strip() and tag == "p" and not badge:
             content = "&nbsp;"
-        blocks.append(f"<{tag}>{content}{badge}</{tag}>")
+        para_id = para._p.get(f"{{{_W14}}}paraId")
+        anchor = f' id="cx-node-p:{_esc(para_id)}"' if para_id else ""
+        blocks.append(f"<{tag}{anchor}>{content}{badge}</{tag}>")
 
     changelog = _changelog(events) if events is not None else ""
     return (

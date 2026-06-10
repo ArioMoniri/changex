@@ -114,7 +114,10 @@ del{background:rgba(248,81,73,.20);color:#ff9d96;border-radius:3px;padding:0 3px
 
 /** Render the journal as a self-contained GitKraken-style commit graph (HTML document). */
 export function renderRedlineHtml(journal: Journal, note?: string): string {
-  const evs = journal.events ?? [];
+  // Chronological: oldest commit first (sort on ts, seq as tiebreak).
+  const evs = [...(journal.events ?? [])].sort(
+    (a, b) => (a.ts ?? "").localeCompare(b.ts ?? "") || a.seq - b.seq
+  );
   const partOf = evs.map((ev) => ev.target?.node_id || ev.target?.path || "doc");
   const order: string[] = [];
   for (const k of partOf) if (!order.includes(k)) order.push(k);

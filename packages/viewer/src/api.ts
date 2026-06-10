@@ -93,6 +93,32 @@ export async function pickDocPath(): Promise<string | null> {
   return typeof picked === "string" ? picked : null;
 }
 
+/**
+ * Reconstruct the document AS OF a commit ("rewind"): replays the ORIGINAL baseline + the
+ * first N edits up to `seq` into a fresh file next to the baseline. Returns the new path.
+ */
+export async function rewindTo(journal: Journal, baseline: string, seq: number): Promise<string> {
+  if (!isTauri()) throw new Error("Rewind needs the desktop app.");
+  return invoke<string>("rewind_to", { path: journal.path, baseline, seq });
+}
+
+/** Reveal a file in Finder / Explorer (Tauri only). */
+export async function revealInFiles(path: string): Promise<void> {
+  if (!isTauri()) return;
+  await invoke("reveal_in_files", { path });
+}
+
+/** Pick the ORIGINAL (pre-edit) document to rewind onto (Tauri only). */
+export async function pickBaselinePath(): Promise<string | null> {
+  if (!isTauri()) return null;
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const picked = await open({
+    multiple: false,
+    filters: [{ name: "Original document", extensions: ["docx", "xlsx", "csv", "pptx", "md"] }],
+  });
+  return typeof picked === "string" ? picked : null;
+}
+
 /** Verify the hash chain via the Python core (Tauri); mock = always ok. */
 export async function verifyJournal(journal: Journal): Promise<CliResult> {
   if (!isTauri() || journal.path.includes("(mock)")) {

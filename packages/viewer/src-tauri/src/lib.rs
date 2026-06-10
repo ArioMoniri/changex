@@ -310,6 +310,55 @@ fn connect_claude() -> Result<CliResult, String> {
     run_changex(&["connect", "all"])
 }
 
+/// Reconstruct the document AS OF an earlier commit ("rewind"/git-checkout): replays the
+/// ORIGINAL baseline + the first N edits up to `seq` into a fresh tracked doc next to the
+/// baseline, and returns its path. Shells out to the tested `changex rewind`.
+#[tauri::command]
+fn rewind_to(path: String, baseline: String, seq: i64) -> Result<String, String> {
+    validate_path(&path)?;
+    let base = Path::new(&baseline);
+    if !base.is_file() {
+        return Err(format!("not a file: {baseline}"));
+    }
+    let ext = base.extension().and_then(|e| e.to_str()).unwrap_or("docx");
+    let stem = base.file_stem().and_then(|s| s.to_str()).unwrap_or("document");
+    let dir = base.parent().unwrap_or_else(|| Path::new("."));
+    let out = dir.join(format!("{stem}.@seq{seq}.{ext}"));
+    let out_str = out.to_string_lossy().into_owned();
+    let res = run_changex(&[
+        "rewind",
+        &path,
+        &baseline,
+        "--to",
+        &seq.to_string(),
+        "--out",
+        &out_str,
+    ])?;
+    if !res.ok {
+        return Err(if res.stderr.is_empty() { res.stdout } else { res.stderr });
+    }
+    Ok(out_str)
+}
+
+/// Reveal a file in the OS file manager (Finder on macOS, Explorer on Windows, default
+/// handler on Linux). Used after a rewind so the reconstructed document is one click away.
+#[tauri::command]
+fn reveal_in_files(path: String) -> Result<(), String> {
+    let p = Path::new(&path);
+    if !p.exists() {
+        return Err(format!("not found: {path}"));
+    }
+    #[cfg(target_os = "macos")]
+    let r = Command::new("open").args(["-R", &path]).spawn();
+    #[cfg(target_os = "windows")]
+    let r = Command::new("explorer").args(["/select,", &path]).spawn();
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let r = Command::new("xdg-open")
+        .arg(p.parent().unwrap_or(p))
+        .spawn();
+    r.map(|_| ()).map_err(|e| e.to_string())
+}
+
 /// Tauri entry point wired from `main.rs`.
 pub fn run() {
     tauri::Builder::default()
@@ -317,13 +366,37 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        .setup(|_app| {
+        .setup(|app| {
             // On launch, auto-register the changex MCP with every installed local app (Claude
             // Code, Claude Desktop, Cursor, Gemini) so the integration "just works" after
             // installing the app — macOS AND Windows. Idempotent no-op if already connected.
             std::thread::spawn(|| {
                 let _ = connect_claude();
             });
+            // Native "liquid glass": a translucent window material that picks up the desktop
+            // behind it — NSVisualEffectView on macOS, Mica (→ Acrylic fallback) on Windows.
+            if let Some(win) = tauri::Manager::get_webview_window(app, "main") {
+                #[cfg(target_os = "macos")]
+                {
+                    use window_vibrancy::{
+                        apply_vibrancy, NSVisualEffectMaterial, NSVisualEffectState,
+                    };
+                    let _ = apply_vibrancy(
+                        &win,
+                        NSVisualEffectMaterial::Sidebar,
+                        Some(NSVisualEffectState::Active),
+                        None,
+                    );
+                }
+                #[cfg(target_os = "windows")]
+                {
+                    use window_vibrancy::{apply_acrylic, apply_mica};
+                    if apply_mica(&win, Some(true)).is_err() {
+                        let _ = apply_acrylic(&win, Some((18, 18, 26, 160)));
+                    }
+                }
+                let _ = &win;
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -331,6 +404,8 @@ pub fn run() {
             render_review,
             render_document,
             find_tracked_doc,
+            rewind_to,
+            reveal_in_files,
             quicklook,
             install_quicklook,
             connect_claude,
