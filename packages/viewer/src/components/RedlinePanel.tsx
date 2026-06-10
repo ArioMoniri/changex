@@ -4,10 +4,11 @@ interface Props {
   html: string;
   loading: boolean;
   /**
-   * When set, the panel runs in "document" mode: the iframe is given
-   * `sandbox="allow-same-origin"` so the host can reach into its document and
-   * scroll to / highlight the paragraph a selected commit changed (by node_id).
-   * Scripts inside the iframe stay disabled — only the parent drives it.
+   * When set, the panel runs in "document" mode: the iframe runs un-sandboxed so the host
+   * can reach into its (same-origin) document and scroll to / highlight the paragraph a
+   * selected commit changed (by node_id). The doc HTML is our own, fully-escaped, script-free
+   * renderer output — WebKit reports a null contentDocument for a sandboxed srcDoc frame even
+   * with allow-same-origin, so dropping the sandbox is what makes the highlight reachable.
    */
   focusNode?: string | null;
 }
@@ -53,9 +54,10 @@ export function RedlinePanel({ html, loading, focusNode }: Props) {
       ref={ref}
       className="redline-frame"
       title="ChangeX redline"
-      // Document mode keeps same-origin (so the host can scroll/highlight it) but still
-      // blocks scripts/forms/popups; graph mode stays fully locked down.
-      sandbox={docMode ? "allow-same-origin" : ""}
+      // Graph mode is fully sandboxed (purely visual). Document mode runs un-sandboxed so the
+      // host can scroll to / highlight the changed paragraph — the content is our own
+      // script-free, fully-escaped renderer output, so this is safe.
+      {...(docMode ? {} : { sandbox: "" })}
       srcDoc={html}
     />
   );
