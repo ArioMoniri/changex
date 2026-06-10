@@ -60,6 +60,39 @@ export async function renderReview(journal: Journal): Promise<string> {
   return res.stdout;
 }
 
+/**
+ * Render the tracked document itself with the changes shown INLINE in its own outline (the
+ * native document view) via `changex review --doc <doc>`. Tauri only — needs the real .docx.
+ */
+export async function renderDocument(journal: Journal, docPath: string): Promise<string> {
+  if (!isTauri()) {
+    return renderRedlineHtml(journal, "document view needs the desktop app + the tracked .docx");
+  }
+  const res = await invoke<CliResult>("render_document", { path: journal.path, doc: docPath });
+  if (!res.ok) throw new Error(res.stderr || "could not render the document view");
+  return res.stdout;
+}
+
+/** Best-effort: find the tracked document sibling for a journal (Tauri only). */
+export async function findTrackedDoc(journal: Journal): Promise<string | null> {
+  if (!isTauri()) return null;
+  return invoke<string | null>("find_tracked_doc", {
+    path: journal.path,
+    filename: journal.header?.doc?.filename ?? null,
+  });
+}
+
+/** Pick the tracked document to show inline (Tauri only). */
+export async function pickDocPath(): Promise<string | null> {
+  if (!isTauri()) return null;
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const picked = await open({
+    multiple: false,
+    filters: [{ name: "Tracked document", extensions: ["docx"] }],
+  });
+  return typeof picked === "string" ? picked : null;
+}
+
 /** Verify the hash chain via the Python core (Tauri); mock = always ok. */
 export async function verifyJournal(journal: Journal): Promise<CliResult> {
   if (!isTauri() || journal.path.includes("(mock)")) {

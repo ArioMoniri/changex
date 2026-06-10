@@ -4,7 +4,7 @@
 
 <h1 align="center">📝 ChangeX</h1>
 
-<p align="center"><b>See <i>exactly</i> what an AI changed in your documents — line by line, with receipts.</b></p>
+<p align="center"><b>An AI just edited your document. Do you actually know what it changed?</b></p>
 
 <p align="center">
   <a href="https://pypi.org/project/changex/"><img src="https://img.shields.io/pypi/v/changex.svg?logo=pypi&logoColor=white" alt="PyPI"></a>
@@ -14,10 +14,18 @@
 </p>
 
 <p align="center">
-ChangeX captures <b>every edit an AI makes</b> to your documents —
+Everyone hands documents to AI now — <i>"tighten the intro," "fix the citations," "redo the abstract."</i>
+It gives the file back looking polished, and you have no real way to see <b>what it actually touched</b>.
+Fine for a grocery list. Not fine for a manuscript, a contract, or anything with your name on it — where a
+flipped number, a citation to a paper that doesn't exist, or a sentence the model quietly invented can ride
+along unnoticed in a wall of text. Re-reading 30 pages to find it isn't a plan.
+</p>
+
+<p align="center">
+ChangeX records <b>every edit the AI makes</b> —
 <code>.docx</code> · <code>.xlsx</code> · <code>.csv</code> · <code>.pptx</code> · <code>.md</code> · <code>.doc</code> —
-<i>as it happens</i>, with <b>who / what / when / why</b>.<br>
-A diff tells you <i>how two files differ</i>; ChangeX tells you <b>what the AI actually did, in order, and why</b> — and lets you accept or reject each change. 🎯
+as real Word <b>tracked changes</b> you accept or reject one at a time, with a tamper-evident log of who did
+what, when, and why. Less "diff between two files," more <b>flight recorder for your document</b>. 🛟
 </p>
 
 <p align="center">
@@ -456,7 +464,12 @@ Run `changex` (or `changex help`) for the full list:
 
 ChangeX ships an optional **[Tauri](https://tauri.app)** desktop viewer — a small, double-clickable window over the **same** review UI as `changex view`.
 
-**You usually don't need it.** `changex view` (zero-install local page) and the single-file HTML report already give the full accept/reject review on every platform. The desktop app just adds a native icon to double-click for non-technical reviewers; it doesn't add features.
+It opens on two views you flip between:
+
+- **Commit graph** — a GitKraken-style timeline where every edit is a commit and each paragraph rides its own coloured lane, so you can trace one part through all its edits.
+- **Document** — your tracked `.docx` shown *as the document itself*: the real text, in order, with the AI's insertions and deletions marked inline (hover a change for who/when). Drop a `.changex` next to its tracked `.docx` and the app finds the doc and opens this view on its own.
+
+**You usually don't need the app.** `changex view` (zero-install local page) and the single-file HTML report already give the full accept/reject review on every platform. The desktop window mostly buys you a native icon to double-click for non-technical reviewers — plus that read-the-document-in-context view above.
 
 <p align="center">
   <a href="https://github.com/ArioMoniri/changex/releases/latest/download/ChangeX-Viewer-macos.dmg"><img src="docs/assets/btn-mac.svg" height="44" alt="Download macOS .dmg"></a>

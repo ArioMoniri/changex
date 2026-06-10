@@ -150,6 +150,53 @@ fn render_review(path: String) -> Result<CliResult, String> {
     run_changex(&["review", &path, "--format", "html"])
 }
 
+/// Render the tracked document itself with the changes shown INLINE in the document's own
+/// outline (the "native document view"): `changex review <path> --doc <doc> --format html`.
+#[tauri::command]
+fn render_document(path: String, doc: String) -> Result<CliResult, String> {
+    validate_path(&path)?;
+    if !Path::new(&doc).is_file() {
+        return Err(format!("not a file: {doc}"));
+    }
+    run_changex(&["review", &path, "--doc", &doc, "--format", "html"])
+}
+
+/// Best-effort: find the tracked document that goes with a journal, so the document view can
+/// open automatically. Tries `<stem>.tracked.docx`, `<stem> tracked.docx`, `<stem>.docx`, the
+/// header's filename, then a lone `.docx` sibling. Returns the first that exists.
+#[tauri::command]
+fn find_tracked_doc(path: String, filename: Option<String>) -> Option<String> {
+    let p = Path::new(&path);
+    let dir = p.parent()?;
+    let stem = p.file_stem()?.to_string_lossy().to_string();
+    let mut candidates = vec![
+        format!("{stem}.tracked.docx"),
+        format!("{stem} tracked.docx"),
+        format!("{stem}.docx"),
+    ];
+    if let Some(f) = filename {
+        candidates.push(f);
+    }
+    for c in &candidates {
+        let cand = dir.join(c);
+        if cand.is_file() {
+            return Some(cand.to_string_lossy().into_owned());
+        }
+    }
+    // Fall back to a single .docx in the same folder.
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        let docs: Vec<_> = entries
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| p.extension().map(|x| x.eq_ignore_ascii_case("docx")).unwrap_or(false))
+            .collect();
+        if docs.len() == 1 {
+            return Some(docs[0].to_string_lossy().into_owned());
+        }
+    }
+    None
+}
+
 /// Verify the hash chain via the Python core: `changex verify <path>`.
 #[tauri::command]
 fn verify_journal(path: String) -> Result<CliResult, String> {
@@ -282,6 +329,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             load_journal,
             render_review,
+            render_document,
+            find_tracked_doc,
             quicklook,
             install_quicklook,
             connect_claude,

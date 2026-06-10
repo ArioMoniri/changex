@@ -232,3 +232,10 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .updates-sub { font-size: .82rem; color: var(--muted, #86868b); margin: 0 0 .7rem; line-height: 1.45; }
 .updates-sub code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; }
 .updates-ql-row { display: flex; gap: 8px; }
+
+/* Commit-graph / Document view toggle */
+.pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: .55rem; }
+.seg { display: inline-flex; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.seg button { background: transparent; border: 0; color: var(--muted); padding: .34rem .74rem; font-size: .8rem; cursor: pointer; border-radius: 0; }
+.seg button.seg-on { background: var(--accent); color: #fff; }
+button.small { padding: .3rem .62rem; font-size: .76rem; }

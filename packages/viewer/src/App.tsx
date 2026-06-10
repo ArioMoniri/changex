@@ -1,16 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CliResult, Journal } from "./types";
 import {
+  findTrackedDoc,
   isTauri,
   loadJournal,
   loadSample,
+  pickDocPath,
   pickJournalPath,
+  renderDocument,
   renderReview,
   verifyJournal,
 } from "./api";
 import { ProvenanceTimeline } from "./components/ProvenanceTimeline";
 import { RedlinePanel } from "./components/RedlinePanel";
 import { UpdatesPage } from "./components/UpdatesPage";
+
+type View = "graph" | "doc";
 
 export default function App() {
   const [journal, setJournal] = useState<Journal | null>(null);
@@ -20,15 +25,23 @@ export default function App() {
   const [selectedSeq, setSelectedSeq] = useState<number | null>(null);
   const [error, setError] = useState<string>("");
   const [showUpdates, setShowUpdates] = useState(false);
+  const [view, setView] = useState<View>("graph");
+  const [docPath, setDocPath] = useState<string | null>(null);
+  const [docHtml, setDocHtml] = useState<string>("");
+  const [docRendering, setDocRendering] = useState(false);
 
   const tauri = isTauri();
 
-  // Whenever a journal loads, render its redline and verify the chain.
+  // Whenever a journal loads: render its commit graph, verify the chain, and try to find
+  // the tracked document so the "Document" view can open automatically.
   useEffect(() => {
     if (!journal) return;
     let cancelled = false;
     setRendering(true);
     setVerify(null);
+    setDocHtml("");
+    setDocPath(null);
+    setView("graph");
     (async () => {
       try {
         const [html, ver] = await Promise.all([
@@ -38,6 +51,8 @@ export default function App() {
         if (cancelled) return;
         setRedline(html);
         setVerify(ver);
+        const found = await findTrackedDoc(journal);
+        if (!cancelled && found) setDocPath(found);
       } catch (e) {
         if (!cancelled) setError(String(e));
       } finally {
@@ -48,6 +63,35 @@ export default function App() {
       cancelled = true;
     };
   }, [journal]);
+
+  // Render the inline document view when the user switches to it (and a doc is available).
+  useEffect(() => {
+    if (view !== "doc" || !journal || !docPath || docHtml) return;
+    let cancelled = false;
+    setDocRendering(true);
+    (async () => {
+      try {
+        const html = await renderDocument(journal, docPath);
+        if (!cancelled) setDocHtml(html);
+      } catch (e) {
+        if (!cancelled) setError(String(e));
+      } finally {
+        if (!cancelled) setDocRendering(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [view, journal, docPath, docHtml]);
+
+  const openDoc = useCallback(async () => {
+    const path = await pickDocPath();
+    if (path) {
+      setDocPath(path);
+      setDocHtml("");
+      setView("doc");
+    }
+  }, []);
 
   const openFile = useCallback(async () => {
     setError("");
@@ -166,8 +210,40 @@ export default function App() {
               />
             </section>
             <section className="pane pane-redline">
-              <h2>Redline</h2>
-              <RedlinePanel html={redline} loading={rendering} />
+              <div className="pane-head">
+                <div className="seg">
+                  <button
+                    className={view === "graph" ? "seg-on" : ""}
+                    onClick={() => setView("graph")}
+                  >
+                    Commit graph
+                  </button>
+                  <button
+                    className={view === "doc" ? "seg-on" : ""}
+                    onClick={() => setView("doc")}
+                  >
+                    Document
+                  </button>
+                </div>
+                <button className="ghost small" onClick={openDoc} title="Choose the tracked .docx">
+                  {docPath ? "Change document…" : "Open document…"}
+                </button>
+              </div>
+              {view === "graph" ? (
+                <RedlinePanel html={redline} loading={rendering} />
+              ) : docPath ? (
+                <RedlinePanel html={docHtml} loading={docRendering} />
+              ) : (
+                <div className="redline-status">
+                  See every tracked change <em>in the document itself</em>. Open the tracked
+                  <code> .docx</code> to view it with insertions and deletions inline.
+                  <div style={{ marginTop: ".7rem" }}>
+                    <button onClick={openDoc} disabled={!tauri}>
+                      Open the tracked document…
+                    </button>
+                  </div>
+                </div>
+              )}
             </section>
           </main>
         </>
