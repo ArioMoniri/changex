@@ -108,12 +108,15 @@ button.ghost { background: transparent; border: 1px solid var(--border); color: 
   overflow: hidden;
 }
 .pane h2 {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--muted);
   margin: 0;
-  padding: 0.7rem 1rem;
+  padding: 0 1rem;
   border-bottom: 1px solid var(--border);
 }
 .pane-timeline { border-right: 1px solid var(--border); }
@@ -233,9 +236,44 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .updates-sub code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; }
 .updates-ql-row { display: flex; gap: 8px; }
 
-/* Commit-graph / Document view toggle */
-.pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: .55rem; }
-.seg { display: inline-flex; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-.seg button { background: transparent; border: 0; color: var(--muted); padding: .34rem .74rem; font-size: .8rem; cursor: pointer; border-radius: 0; }
-.seg button.seg-on { background: var(--accent); color: #fff; }
-button.small { padding: .3rem .62rem; font-size: .76rem; }
+/* Commit-graph / Document view: a dark header bar (matches the timeline header)
+   with a macOS-style segmented toggle, sitting above the white review surface. */
+.pane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 0.85rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+.seg button {
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  color: var(--muted);
+  padding: 0.3rem 0.82rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.seg button:hover:not(.seg-on) { color: var(--text); background: rgba(255, 255, 255, 0.05); }
+.seg button.seg-on {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+/* "Open / Change document…" — a quiet ghost button that reads clearly on the dark bar */
+button.small { padding: 0.32rem 0.7rem; font-size: 0.76rem; border-radius: 7px; }
+.pane-head .ghost.small { color: var(--muted); }
+.pane-head .ghost.small:not(:disabled):hover { color: var(--text); border-color: var(--muted); }
