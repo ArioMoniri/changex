@@ -5,9 +5,10 @@
 passes back to page forward. The model uses the returned ``node_id``s to target
 the ``edit`` tool, so the outline is the discovery surface for addressing.
 
-Previews are truncated to keep the payload small; the full text is never required
-to *locate* a node (the agent supplies the exact ``before`` substring on edit,
-which the adapter validates).
+Previews are truncated to keep the payload small — enough to *locate* a paragraph,
+not to edit it. To change wording past the preview, an agent reads the paragraph's
+full current text with the ``read_node`` tool first, then supplies an exact ``before``
+substring on edit (which the adapter validates).
 """
 
 from __future__ import annotations

@@ -41,8 +41,11 @@ _INSTRUCTIONS = (
     "ChangeX turns your edits to a Word document into native, accept/reject "
     "tracked changes plus a portable, hash-chained provenance journal "
     "(.changex). Workflow: call open_tracked(path) to get a handle, "
-    "get_outline(handle) to discover node_ids, then make the SMALLEST "
-    "possible edit per call via edit(handle, op=..., node_id=..., ...). "
+    "get_outline(handle) to discover node_ids. The outline's `preview` is "
+    "truncated (~120 chars), so to change wording anywhere past the opening of a "
+    "paragraph, call read_node(handle, node_id) to read its FULL current text and "
+    "copy the exact `before` from it — never guess text you cannot see. Then make "
+    "the SMALLEST possible edit per call via edit(handle, op=..., node_id=..., ...). "
     "Always pass the exact existing text in `before`; the server validates it "
     "and refuses blind overwrites. Never delete-and-reinsert a whole paragraph "
     "for a small wording change — use replace_text on just the changed words. "
@@ -80,9 +83,30 @@ def get_outline(
     Returns {nodes:[{node_id, kind, preview, style}], next_cursor, total}. Pass the
     returned next_cursor back to page through a large document instead of pulling
     the whole thing into context. Use a node_id from here as the target of `edit`.
+
+    NOTE: `preview` is TRUNCATED (~120 chars). It is enough to identify a paragraph,
+    NOT enough to safely edit past the opening — to change wording in the middle or end
+    of a paragraph, call read_node(handle, node_id) first to read its full current text.
     """
     try:
         return tools.get_outline(STORE, handle=handle, cursor=cursor, limit=limit)
+    except (tools.ToolError, ValueError) as exc:
+        return _coerce_error(exc)
+
+
+def read_node(handle: str, node_id: str) -> dict[str, Any]:
+    """Read the FULL current text of one paragraph, so you can edit its middle or end.
+
+    Returns {node_id, kind, style, text, length}. `get_outline` only gives a short,
+    truncated `preview` of each paragraph — so you literally cannot see (and must not
+    guess) text beyond the first ~120 characters. Before ANY replace_text / delete_text /
+    insert_text_after that targets wording you can't fully see in the preview, call
+    read_node(handle, node_id), then copy the exact `before` substring out of the returned
+    `text`. That `text` is precisely what the edit guard matches `before` against, so a
+    substring of it always matches — no blind edits, no broken clinical/legal details.
+    """
+    try:
+        return tools.read_node(STORE, handle=handle, node_id=node_id)
     except (tools.ToolError, ValueError) as exc:
         return _coerce_error(exc)
 
@@ -216,10 +240,11 @@ def _coerce_error(exc: Exception) -> dict[str, Any]:
     return {"error": "invalid_argument", "detail": str(exc)}
 
 
-# The eight tool callables, registered identically on every FastMCP instance.
+# The tool callables, registered identically on every FastMCP instance.
 _TOOLS = (
     open_tracked,
     get_outline,
+    read_node,
     edit,
     save_tracked,
     reject,

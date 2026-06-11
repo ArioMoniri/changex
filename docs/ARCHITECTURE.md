@@ -130,7 +130,8 @@ The universal integration. Tools (initial set):
 | Tool | Purpose |
 |------|---------|
 | `open_tracked(path)` | Open a doc, snapshot baseline, start a session, return a handle + model summary |
-| `get_outline(handle)` | Return the addressable node outline for the agent to target edits |
+| `get_outline(handle)` | Return the addressable node outline (truncated previews) for the agent to target edits |
+| `read_node(handle, node_id)` | Return one paragraph's **full current text** so the agent can match an exact `before` past the preview |
 | `edit(handle, op)` | Apply one semantic operation; append to journal with provenance |
 | `save_tracked(handle, out)` | Render native track changes + write `.changex` sidecar |
 | `get_changes(handle)` | Return the provenance journal (structured) |

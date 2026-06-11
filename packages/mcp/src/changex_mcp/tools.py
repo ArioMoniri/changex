@@ -136,6 +136,38 @@ def get_outline(
     return page.to_dict()
 
 
+# -- read_node (full text for safe before-matching) ---------------------------
+
+
+def read_node(store: SessionStore, *, handle: str, node_id: str) -> dict[str, Any]:
+    """Return the FULL current text of one node, so an edit can match ``before`` anywhere.
+
+    ``get_outline`` only returns a short, truncated ``preview`` of each paragraph. An
+    agent that needs to change wording in the *middle or end* of a paragraph cannot do
+    so safely from the preview alone — it would have to guess text it can't see, and the
+    ``edit`` guard (rightly) refuses a ``before`` that doesn't match. This tool returns
+    the node's *current* content — the very text ``edit`` validates ``before`` against —
+    so any substring copied from ``text`` is a valid, exact ``before``.
+    """
+    session = store.get(handle)
+    nid = coerce_str(node_id, field="node_id") or ""
+    node = session.adapter.to_model().find(nid)
+    if node is None:
+        raise ToolError(
+            "node_not_found",
+            f"no node with node_id {nid!r}; call get_outline to list valid node_ids.",
+        )
+    text = node.text() or ("" if node.value is None else str(node.value))
+    style = str(node.attrs.get("style")) if node.attrs.get("style") else None
+    return {
+        "node_id": node.node_id,
+        "kind": node.node_kind.value,
+        "style": style,
+        "text": text,
+        "length": len(text),
+    }
+
+
 # -- edit (intent-dispatched) -------------------------------------------------
 
 

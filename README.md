@@ -116,7 +116,7 @@ Either way you get a portable, hash-chained **`.changex`** journal plus a tracke
 
 <br>
 
-With the MCP server connected (Quickstart step 2), just ask in plain language. The model edits **through** ChangeX (`open_tracked → get_outline → edit → save_tracked`), so every change is a real Word revision — nothing silently rewritten.
+With the MCP server connected (Quickstart step 2), just ask in plain language. The model edits **through** ChangeX (`open_tracked → get_outline → read_node → edit → save_tracked`), so every change is a real Word revision — nothing silently rewritten. (`read_node` lets it pull a paragraph's full text before editing, so it never has to guess wording it can't see — a clinical or legal detail won't get broken by a blind edit.)
 
 > *"Use changex to open `~/Documents/Q3-report.docx`. Tighten the executive summary, fix the heading levels, and replace the passive voice in section 2 — make every change a **tracked revision** authored by you, save it, then show me a review of what changed."*
 

@@ -31,7 +31,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "changex"
-version = "0.1.24"
+version = "0.1.25"
 description = "ChangeX: provenance-first change tracking for AI document edits. Meta package — installs the core CLI (changex) and the MCP server (changex-mcp)."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -53,9 +53,9 @@ classifiers = [
 # CLI and the MCP server in one step.
 dependencies = [
     # [preview] pulls Pygments so `changex preview` highlights source code out of the box.
-    "changex-core[preview]>=0.1.24",
-    "changex-mcp>=0.1.24",
-    "changex-api>=0.1.24",
+    "changex-core[preview]>=0.1.25",
+    "changex-mcp>=0.1.25",
+    "changex-api>=0.1.25",
 ]
 
 # Re-expose ALL commands from the meta package. They resolve to the same entry
