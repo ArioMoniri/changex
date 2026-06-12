@@ -230,7 +230,12 @@ def edit(
         except OversizedOpError as exc:
             raise ToolError("split_required", str(exc)) from exc
         except BeforeMismatchError as exc:
-            raise ToolError("before_mismatch", str(exc)) from exc
+            raise ToolError(
+                "before_mismatch",
+                f"{exc} — call read_node(handle, node_id={node_id_str!r}) to read the "
+                "node's exact current text, then copy `before` verbatim from it (do not "
+                "guess text you cannot see).",
+            ) from exc
         except NodeNotFoundError as exc:
             raise ToolError("node_not_found", str(exc)) from exc
         target = _target_for(session, core_op, node_id_str)

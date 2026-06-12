@@ -54,10 +54,20 @@ def test_outline_preview_truncates_but_read_node_returns_full_text(tmp_path: Pat
     store = SessionStore()
     handle = _open(store, _doc(tmp_path))
 
-    preview = tools.get_outline(store, handle=handle)["nodes"][0]["preview"]
+    outline = tools.get_outline(store, handle=handle)
+    entry = outline["nodes"][0]
+    preview = entry["preview"]
     assert len(preview) <= PREVIEW_CHARS
     assert preview.endswith("…")  # visibly truncated
     assert "hyponatraemia" not in preview  # the key detail is past the cutoff
+    # The truncation announces itself so an agent knows to read the rest.
+    assert entry["truncated"] is True
+    assert entry["chars"] == len(LONG)
+    # The preview is cut on a WORD boundary (not mid-word like "…produce a v").
+    stem = preview[:-2].rstrip()  # drop the trailing " …"
+    flat = " ".join(LONG.split())
+    assert flat.startswith(stem) and flat[len(stem)] == " "
+    assert "read_node" in outline["note"]  # the result itself points to the fix
 
     node = tools.read_node(store, handle=handle, node_id=NODE_ID)
     assert node["text"] == LONG  # the WHOLE paragraph, not the preview

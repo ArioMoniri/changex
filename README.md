@@ -61,36 +61,52 @@ changex connect all                          # then ⌘Q + reopen the Claude Des
 That's it — every edit lands as a **real Word tracked change** you can accept/reject, with full provenance. No MCP, a local/offline model, or a human editing by hand? → **[Without tools](#-how-it-works)** below.
 
 <details>
-<summary><b>🔄 Updating — what to update, and how</b></summary>
+<summary><b>🔄 Updating ChangeX — the CLI &amp; MCP, the Viewer app, and previews</b></summary>
 
 <br>
 
-**There's only one thing to update: the `changex` package.** The MCP server (`changex-mcp`) and every CLI command ship *inside* it — you never update those separately.
+Three pieces can update independently. Most people only need **#1**.
 
-**1. Update the package — use the same installer you installed with:**
+### 1 · The CLI + MCP server (the `changex` package)
 
-| If you installed with… | …update with |
+Everything an AI uses — the `changex` CLI **and** the `changex-mcp` server — ships in one package. Update it with whatever you installed with:
+
+| Installed with… | Update with |
 |---|---|
 | `uv tool install changex` | `uv tool upgrade changex` |
 | `pipx install changex` | `pipx upgrade changex` |
-| `pip install changex` | `pip install -U changex` |
+| `pip install changex` | `pip install -U --no-cache-dir "changex[preview]"` |
 | `uvx changex` *(zero-install)* | nothing — `uvx` always runs the latest |
 
-Confirm it worked: **`changex --version`**.
+Confirm: **`changex --version`**.
 
-> **Still on the old version after upgrading?** PyPI's install index can lag a release by a few minutes, so `pip` may grab the previous version (and leave a sub-package like `changex-core` behind). Force a clean upgrade of all of them — `pip install -U --no-cache-dir changex changex-core changex-mcp changex-api` — or just `uv tool upgrade changex`, which handles it cleanly.
+> ### ⚠️ Then reconnect your AI app — this is the step people miss
+> The MCP server is a **long-running process**. Updating the package on disk does **not** upgrade a server that's already running — until it restarts it keeps serving the **old** version, so **new tools won't appear** (e.g. `read_node`, added in v0.1.25). After updating, **fully quit and reopen** your AI app (Claude Code / Claude Desktop / Cursor — **⌘Q**, not just close the window). Reusing a document handle opened *before* the update has the same trap — open it fresh. **When a tool seems missing, reconnect first.**
 
-**2. The MCP server updates automatically.** Because `changex-mcp` is part of the package, step 1 upgrades it too. Your Claude registration is just a pointer to the `changex-mcp` binary, so **do *not* re-run `claude mcp add` to "update" it** — that doesn't update anything, it only creates duplicate entries. It picks up the new version next time it launches.
+> **Still on the old version after upgrading?** PyPI's index can lag a release by a few minutes. Force a clean upgrade of every sub-package — `pip install -U --no-cache-dir changex changex-core changex-mcp changex-api` — or just `uv tool upgrade changex`.
 
-> Registered the MCP as `uvx changex-mcp` (zero-install) instead of the binary? That form is pinned to a cached version — get the newest with `uvx changex-mcp@latest`, or switch to the installed binary (below).
-
-**Only touch `claude mcp` to (re)connect or fix duplicates.** Register **once** with `-s user` so it works in every folder and never duplicates. If you already added it in several folders without `-s user`, reset to a single clean entry:
+You do **not** re-run `claude mcp add` to update — that only creates duplicate entries. Register **once** with `-s user`; to fix duplicates:
 
 ```bash
 claude mcp remove changex                    # repeat in each folder you added it to
 claude mcp add -s user changex -- changex-mcp
 claude mcp list                              # changex → ✓ Connected
 ```
+
+### 2 · The ChangeX Viewer (desktop app)
+
+- **From inside the app:** **Settings → Check for updates** — it ships a signed auto-updater that downloads and installs the latest.
+- **Or grab the latest signed build:** [macOS `.dmg`](https://github.com/ArioMoniri/changex/releases/latest/download/ChangeX-Viewer-macos.dmg) · [Windows `.msi`](https://github.com/ArioMoniri/changex/releases/latest/download/ChangeX-Viewer-windows.msi) · [Linux `.AppImage`](https://github.com/ArioMoniri/changex/releases/latest/download/ChangeX-Viewer-linux.AppImage). On macOS, drag it over the old copy in **Applications**.
+- The Viewer shells out to your installed `changex` CLI for real-file reviews, so keep **#1** current too.
+
+### 3 · Quick Look (macOS) / Explorer preview (Windows)
+
+These render the press-**Space** preview and travel with the package's helper:
+
+- **macOS Quick Look:** re-enable to refresh the helper — `changex quicklook enable`, or **ChangeX Viewer → Settings → Enable**.
+- **Windows preview handler:** re-run the installer from the [latest release](https://github.com/ArioMoniri/changex/releases/latest).
+
+> **TL;DR:** `uv tool upgrade changex` (or `pip install -U --no-cache-dir "changex[preview]"`) → **quit &amp; reopen your AI app** → update the Viewer from its Settings. Done.
 
 </details>
 

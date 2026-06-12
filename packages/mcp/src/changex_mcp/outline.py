@@ -25,12 +25,19 @@ MAX_LIMIT = 500
 
 @dataclass
 class OutlineEntry:
-    """One node in a paginated outline page."""
+    """One node in a paginated outline page.
+
+    ``truncated`` / ``chars`` tell the agent whether ``preview`` is the whole
+    paragraph or just its opening — when ``truncated`` is true, ``read_node`` is
+    required before editing wording it can't see in ``preview``.
+    """
 
     node_id: str
     kind: str
     preview: str
     style: Optional[str] = None
+    truncated: bool = False
+    chars: int = 0
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -38,6 +45,8 @@ class OutlineEntry:
             "kind": self.kind,
             "preview": self.preview,
             "style": self.style,
+            "truncated": self.truncated,
+            "chars": self.chars,
         }
 
 
@@ -50,19 +59,40 @@ class OutlinePage:
     total: int
 
     def to_dict(self) -> dict[str, object]:
-        return {
+        page: dict[str, object] = {
             "nodes": [n.to_dict() for n in self.nodes],
             "next_cursor": self.next_cursor,
             "total": self.total,
         }
+        # Make the truncation impossible to miss: if ANY preview is clipped, tell the
+        # agent — in the tool result itself — how to read the rest before it edits.
+        if any(n.truncated for n in self.nodes):
+            page["note"] = (
+                "Some previews are truncated (each node has `truncated` and the full "
+                "`chars` count). The preview is enough to LOCATE a paragraph, not to "
+                "edit it — before changing any wording you can't fully see, call "
+                "read_node(handle, node_id) to read the paragraph's full current text "
+                "and copy an exact `before` from it. Never guess clipped text."
+            )
+        return page
 
 
-def _preview(text: str) -> str:
-    """Collapse and truncate ``text`` for a compact preview."""
+def _preview(text: str) -> tuple[str, bool]:
+    """Collapse and truncate ``text`` for a compact preview.
+
+    Returns ``(preview, truncated)``. Truncation lands on a word boundary (so the
+    preview never ends mid-word like ``"…produce a v"``) and is flagged with a
+    trailing ``" …"`` — the caller also exposes the full ``chars`` count so the
+    agent knows there is more to read via ``read_node``.
+    """
     flat = " ".join((text or "").split())
     if len(flat) <= PREVIEW_CHARS:
-        return flat
-    return flat[: PREVIEW_CHARS - 1].rstrip() + "…"
+        return flat, False
+    cut = flat[: PREVIEW_CHARS - 2]
+    sp = cut.rfind(" ")
+    if sp >= PREVIEW_CHARS // 2:  # only honor the boundary if it isn't absurdly early
+        cut = cut[:sp]
+    return cut.rstrip() + " …", True
 
 
 def _decode_cursor(cursor: Optional[str]) -> int:
@@ -98,15 +128,20 @@ def build_outline(
     start = _decode_cursor(cursor)
     window = paras[start : start + limit]
 
-    entries = [
-        OutlineEntry(
-            node_id=node.node_id,
-            kind=node.node_kind.value,
-            preview=_preview(node.text() or str(node.value or "")),
-            style=str(node.attrs.get("style")) if node.attrs.get("style") else None,
+    entries: list[OutlineEntry] = []
+    for node in window:
+        full = node.text() or str(node.value or "")
+        preview, truncated = _preview(full)
+        entries.append(
+            OutlineEntry(
+                node_id=node.node_id,
+                kind=node.node_kind.value,
+                preview=preview,
+                style=str(node.attrs.get("style")) if node.attrs.get("style") else None,
+                truncated=truncated,
+                chars=len(full),
+            )
         )
-        for node in window
-    ]
     next_index = start + limit
     next_cursor = str(next_index) if next_index < total else None
     return OutlinePage(nodes=entries, next_cursor=next_cursor, total=total)
