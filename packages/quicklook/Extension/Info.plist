@@ -24,35 +24,11 @@
     <dict>
       <key>QLSupportedContentTypes</key>
       <array>
-        <!-- ChangeX journals → redline. -->
+        <!-- ChangeX previews ONLY its own journal format. Source code, Markdown, JSON,
+             plain text, etc. are deliberately left to dedicated previewers (QLMarkdown,
+             Syntax Highlight, …) so there are zero Quick Look conflicts: ChangeX owns
+             .changex, your code/markdown tools keep theirs. -->
         <string>dev.changex.journal</string>
-        <!-- Source code (umbrella) + common specifics, structured text, and plain text →
-             syntax-highlighted source view. Overlaps with other code previewers (e.g. Qedit);
-             macOS lets the user pick the active one in System Settings ▸ Extensions. -->
-        <string>public.source-code</string>
-        <string>public.script</string>
-        <string>public.shell-script</string>
-        <string>public.python-script</string>
-        <string>public.ruby-script</string>
-        <string>public.perl-script</string>
-        <string>public.php-script</string>
-        <string>public.swift-source</string>
-        <string>public.c-source</string>
-        <string>public.c-plus-plus-source</string>
-        <string>public.objective-c-source</string>
-        <string>public.c-header</string>
-        <string>public.c-plus-plus-header</string>
-        <string>public.assembly-source</string>
-        <string>com.netscape.javascript-source</string>
-        <string>com.sun.java-source</string>
-        <string>public.json</string>
-        <string>public.yaml</string>
-        <string>public.xml</string>
-        <string>com.apple.property-list</string>
-        <string>net.daringfireball.markdown</string>
-        <string>public.css</string>
-        <string>public.log</string>
-        <string>public.plain-text</string>
       </array>
       <key>QLSupportsSearchableItems</key>
       <false/>

@@ -362,10 +362,12 @@ $ changex rewind "Q3 Launch Brief.changex" original.docx --to 3 --out phase3.doc
 ✓ rewound to seq 3 (671985a54) — 3 of 7 edits applied
 ```
 
-`changex preview` renders **any** file to a self-contained HTML page — a `.changex` journal
-as a redline, or a **source-code/text file with syntax highlighting** (Pygments). It's the
-engine behind the macOS Quick Look extension and the Windows preview handler below, so a
-double-click preview looks the same everywhere.
+`changex preview` renders a `.changex` journal to a self-contained HTML redline you can open
+anywhere (point it at a source file and it'll syntax-highlight that too — a handy CLI extra). It's
+the engine behind the Windows Explorer preview handler and `changex view`. **The Finder (macOS)
+and Explorer (Windows) previews below fire for `.changex` only** — ChangeX never claims your
+Markdown, code, or JSON, so your own preview tools (QLMarkdown, Syntax Highlight, …) keep them.
+No conflicts, ever.
 
 💡 Paths with spaces need quotes: `changex open "My Report.docx"`.
 
@@ -462,7 +464,7 @@ Run `changex` (or `changex help`) for the full list:
 
   Diagnose & set up (macOS)
     doctor     diagnose install + file-access (Full Disk Access)
-    quicklook  manage the Finder Quick Look preview for .changex & code files
+    quicklook  manage the Finder Quick Look preview for .changex journals
 
   Extras
     shell    interactive Python shell with changex_core preloaded
@@ -502,13 +504,14 @@ Installers attach to **[tagged releases](https://github.com/ArioMoniri/changex/r
 <details>
 <summary>🔎 <strong>Finder / Explorer preview — press Space to see the redline</strong></summary>
 
-Preview a `.changex` journal (or any source file, syntax-highlighted) right from your file
-manager — no app to open.
+Preview a `.changex` journal right from your file manager — no app to open. ChangeX claims
+**only** `.changex`, so it sits alongside your other previewers (QLMarkdown for `.md`, Syntax
+Highlight for code, …) instead of fighting them for a file type.
 
-- **macOS — Quick Look.** Grab `ChangeX-QuickLook.dmg` from the [latest release](https://github.com/ArioMoniri/changex/releases/latest) (signed + notarized), or just open **ChangeX Viewer ▸ Settings ▸ Enable** and it installs + turns on the preview for you. Then select a `.changex` (or `.py`, `.ts`, `.json`, …) in Finder and press **Space**. The helper is a background agent — **no Dock icon**. Manage it any time with `changex quicklook status|enable|disable`.
-- **Windows — Explorer preview pane.** Grab `ChangeX-Windows-Preview.zip` from the latest release and run `install.ps1` (it registers a preview handler that shells out to `changex preview`). Select a file and open the preview pane (**Alt+P**). Requires `pip install "changex[preview]"`.
+- **macOS — Quick Look.** Grab `ChangeX-QuickLook.dmg` from the [latest release](https://github.com/ArioMoniri/changex/releases/latest) (signed + notarized), or just open **ChangeX Viewer ▸ Settings ▸ Enable** and it installs + turns on the preview for you. Then select a `.changex` in Finder and press **Space**. The helper is a background agent — **no Dock icon**. Manage it any time with `changex quicklook status|enable|disable`.
+- **Windows — Explorer preview pane.** Grab `ChangeX-Windows-Preview.zip` from the latest release and run `install.ps1` (it registers a preview handler that shells out to `changex preview`). Select a `.changex` and open the preview pane (**Alt+P**). Requires `pip install "changex[preview]"`. Upgrading from an older build? `install.ps1` also releases the code/text file types earlier versions used to claim.
 
-Both reuse the same `changex preview` engine, so the preview looks identical across platforms.
+Both render the same redline ChangeX shows everywhere — only for `.changex`.
 
 </details>
 

@@ -5,34 +5,18 @@ import AppKit
 /// Quick Look host renders blank (its WebContent helper can't paint there). Native text always
 /// renders, in both light and dark panels (semantic `NSColor`s adapt automatically).
 ///
-/// Two modes, chosen by the file:
-///   * `.changex` journal → a redline (deleted = red strikethrough, inserted = green) + the
-///     attributed agent, the same story `changex review` tells;
-///   * any other file → its source, syntax-highlighted with a small language-agnostic tokenizer.
+/// ChangeX previews ONLY its own `.changex` journal → a redline (deleted = red strikethrough,
+/// inserted = green) + the attributed agent, the same story `changex review` tells. The
+/// extension declares just `dev.changex.journal`, so code/Markdown/etc. stay with their own
+/// previewers (QLMarkdown, Syntax Highlight, …) — no conflicts. The plain-text fallback below
+/// only fires if a non-journal somehow reaches us, so it shows content instead of a blank panel.
 enum ChangexRenderer {
     static func attributed(for url: URL, data: Data) -> NSAttributedString {
-        let ext = url.pathExtension.lowercased()
-        if ext == "changex" || looksLikeChangex(data) {
+        if url.pathExtension.lowercased() == "changex" || looksLikeChangex(data) {
             return changexAttributed(from: data)
         }
-        if codeExtensions.contains(ext) {
-            return codeAttributed(from: data)
-        }
-        // Plain text (.txt/.log/unknown): render as-is, WITHOUT code highlighting — otherwise
-        // ordinary prose words ("is", "for", "in", "type"…) would be coloured like keywords.
         return plainTextAttributed(from: data)
     }
-
-    /// Extensions we treat as source code (→ syntax highlighting). Everything else that
-    /// reaches the renderer is shown as plain text.
-    private static let codeExtensions: Set<String> = [
-        "py", "pyw", "rb", "js", "mjs", "cjs", "jsx", "ts", "tsx", "c", "h", "cc", "cpp",
-        "cxx", "hpp", "hh", "m", "mm", "java", "kt", "kts", "go", "rs", "php", "pl", "pm",
-        "sh", "bash", "zsh", "fish", "ps1", "sql", "r", "scala", "lua", "dart", "ex", "exs",
-        "erl", "hs", "clj", "cs", "fs", "vb", "swift", "json", "jsonl", "yaml", "yml", "toml",
-        "ini", "cfg", "conf", "xml", "html", "htm", "svg", "plist", "css", "scss", "less",
-        "gradle", "groovy", "diff", "patch", "graphql", "proto", "vue", "tf", "asm", "s",
-    ]
 
     private static func plainTextAttributed(from data: Data) -> NSAttributedString {
         let text = String(data: data, encoding: .utf8)
@@ -117,87 +101,6 @@ enum ChangexRenderer {
         let label = "\(format) · \(count) tracked change\(count == 1 ? "" : "s")\n\n"
         out.append(run(label, NSFont.systemFont(ofSize: 12), .secondaryLabelColor))
         out.append(rows.length > 0 ? rows : run("No changes recorded.", body, .secondaryLabelColor))
-        return out
-    }
-
-    // MARK: - source code (language-agnostic highlighter)
-
-    private static let keywords: Set<String> = [
-        "abstract", "and", "as", "assert", "async", "await", "break", "case", "catch", "class",
-        "const", "continue", "def", "default", "del", "do", "elif", "else", "end", "enum",
-        "except", "export", "extends", "extension", "false", "final", "finally", "fn", "for",
-        "from", "func", "function", "global", "go", "guard", "if", "impl", "import", "in",
-        "init", "instanceof", "interface", "is", "lambda", "let", "match", "mod", "module",
-        "mut", "new", "nil", "none", "not", "null", "or", "override", "package", "pass",
-        "private", "protected", "protocol", "pub", "public", "raise", "return", "self",
-        "static", "struct", "super", "switch", "this", "throw", "throws", "trait", "true",
-        "try", "type", "typedef", "typeof", "union", "unsafe", "use", "var", "void", "where",
-        "while", "with", "yield",
-    ]
-
-    private static func codeAttributed(from data: Data) -> NSAttributedString {
-        let src = String(data: data, encoding: .utf8)
-            ?? String(data: data, encoding: .isoLatin1) ?? ""
-        let out = NSMutableAttributedString()
-        let chars = Array(src)
-        let n = chars.count
-        var i = 0
-
-        let commentColor = NSColor.systemGray
-        let stringColor = NSColor.systemRed
-        let numberColor = NSColor.systemTeal
-        let keywordColor = NSColor.systemPink
-        let plainColor = NSColor.labelColor
-
-        func emit(_ s: String, _ color: NSColor) {
-            out.append(NSAttributedString(string: s, attributes: [.font: monoBody, .foregroundColor: color]))
-        }
-
-        while i < n {
-            let c = chars[i]
-            // line comment: //  #  --
-            if (c == "/" && i + 1 < n && chars[i + 1] == "/")
-                || c == "#"
-                || (c == "-" && i + 1 < n && chars[i + 1] == "-") {
-                var j = i
-                while j < n && chars[j] != "\n" { j += 1 }
-                emit(String(chars[i..<j]), commentColor); i = j; continue
-            }
-            // block comment /* ... */
-            if c == "/" && i + 1 < n && chars[i + 1] == "*" {
-                var j = i + 2
-                while j + 1 < n && !(chars[j] == "*" && chars[j + 1] == "/") { j += 1 }
-                j = min(j + 2, n)
-                emit(String(chars[i..<j]), commentColor); i = j; continue
-            }
-            // string  "  '  `
-            if c == "\"" || c == "'" || c == "`" {
-                let q = c
-                var j = i + 1
-                while j < n {
-                    if chars[j] == "\\" { j += 2; continue }
-                    if chars[j] == q { j += 1; break }
-                    if chars[j] == "\n" { break }
-                    j += 1
-                }
-                emit(String(chars[i..<min(j, n)]), stringColor); i = min(j, n); continue
-            }
-            // number
-            if c.isNumber {
-                var j = i
-                while j < n && (chars[j].isHexDigit || chars[j] == "." || chars[j] == "x"
-                               || chars[j] == "_" || chars[j] == "e") { j += 1 }
-                emit(String(chars[i..<j]), numberColor); i = j; continue
-            }
-            // identifier / keyword
-            if c.isLetter || c == "_" {
-                var j = i
-                while j < n && (chars[j].isLetter || chars[j].isNumber || chars[j] == "_") { j += 1 }
-                let word = String(chars[i..<j])
-                emit(word, keywords.contains(word) ? keywordColor : plainColor); i = j; continue
-            }
-            emit(String(c), plainColor); i += 1
-        }
         return out
     }
 

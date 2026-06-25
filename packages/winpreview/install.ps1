@@ -2,7 +2,9 @@
   ChangeX Windows preview handler — installer.
 
   Registers the COM preview handler (ChangeXPreview.dll) and associates it with the
-  Explorer preview pane for .changex journals and common source-code extensions. Run from
+  Explorer preview pane for ChangeX's own .changex journals ONLY — your code/Markdown/etc.
+  stay with their own preview handlers, so there are no conflicts. (Upgrading from an older
+  build also unregisters the code/text extensions previous versions used to claim.) Run from
   an ELEVATED PowerShell:  powershell -ExecutionPolicy Bypass -File install.ps1
 
   Requires the ChangeX engine on PATH:  pip install -U "changex[preview]"
@@ -16,10 +18,13 @@ $ErrorActionPreference = 'Stop'
 $clsid = '{D3A1B2C4-5E6F-47A8-9B0C-1D2E3F4A5B6C}'
 $previewIid = '{8895b1c6-b41f-4c1c-a562-0d564250836f}'   # IID_IPreviewHandler
 
-# File extensions to preview with ChangeX (the redline for .changex, syntax-highlighted code
-# for the rest). Adjust to taste — these are the "full set".
-$exts = @(
-    '.changex',
+# ChangeX previews ONLY its own .changex journals. Code/Markdown/JSON/etc. are deliberately
+# left to your dedicated preview handlers, so ChangeX never fights them for a file type.
+$exts = @('.changex')
+
+# Code/text extensions earlier builds used to claim. We UNREGISTER these on (re)install so an
+# upgrade cleanly hands them back to whatever previewer the user actually wants for them.
+$legacyExts = @(
     '.py','.js','.mjs','.cjs','.ts','.tsx','.jsx','.rb','.go','.rs','.php','.pl','.lua',
     '.swift','.kt','.java','.scala','.cs','.fs','.c','.h','.cc','.cpp','.cxx','.hpp','.m','.mm',
     '.sh','.bash','.zsh','.ps1','.sql','.r','.dart','.ex','.exs','.hs','.clj',
@@ -52,7 +57,15 @@ foreach ($ext in $exts) {
     Set-ItemProperty -Path "$verb\command" -Name '(default)' -Value 'cmd /c changex preview "%1" --open'
 }
 
+Write-Host "Releasing legacy code/text associations (handing them back to your own previewers)..." -ForegroundColor Cyan
+foreach ($ext in $legacyExts) {
+    $key = "Registry::HKEY_CLASSES_ROOT\$ext\shellex\$previewIid"
+    if (Test-Path $key) { Remove-Item -Path $key -Recurse -Force -ErrorAction SilentlyContinue }
+    $verb = "Registry::HKEY_CLASSES_ROOT\SystemFileAssociations\$ext\shell\ChangeXPreview"
+    if (Test-Path $verb) { Remove-Item -Path $verb -Recurse -Force -ErrorAction SilentlyContinue }
+}
+
 Write-Host "`nDone." -ForegroundColor Green
-Write-Host "  • Preview pane: open Explorer, press Alt+P, select a .changex or code file."
-Write-Host "  • Or right-click any such file → 'Preview with ChangeX' (opens in your browser)."
+Write-Host "  • Preview pane: open Explorer, press Alt+P, select a .changex journal."
+Write-Host "  • Or right-click a .changex file → 'Preview with ChangeX' (opens in your browser)."
 Write-Host "If the preview pane stays blank, use the right-click option (or sign out/in — Explorer caches handlers)."

@@ -2,8 +2,8 @@ import AppKit
 
 /// Headless guard for the Quick Look renderer: asserts the native NSAttributedString actually
 /// contains the redline text + the right attributes (strikethrough deletion, coloured
-/// insertion) and that code is syntax-coloured — the regression that once made the preview
-/// blank. Run in CI:
+/// insertion), and that non-journal files fall back to plain text — ChangeX claims ONLY
+/// `.changex`, so it no longer syntax-highlights code (dedicated previewers own that). Run in CI:
 ///   swiftc -O Extension/ChangexRenderer.swift Tests/RenderCheck.swift -o rendercheck && ./rendercheck
 @main
 struct RenderCheck {
@@ -37,14 +37,15 @@ struct RenderCheck {
         check(hasAttr(chx, .strikethroughStyle) { ($0 as? Int ?? 0) != 0 }, "deletion is struck through")
         check(hasAttr(chx, .foregroundColor) { ($0 as? NSColor) == .systemGreen }, "insertion is green")
 
-        // code → syntax highlight (keyword coloured)
+        // A non-journal file (e.g. source code) is shown as plain text — ChangeX claims only
+        // .changex and no longer syntax-highlights code, so dedicated previewers own those types.
         let code = ChangexRenderer.attributed(for: URL(fileURLWithPath: "/tmp/x.py"),
                                               data: Data("import os  # c\nx = 1\n".utf8))
-        check(code.string.contains("import"), "code shows the source")
-        check(hasAttr(code, .foregroundColor) { ($0 as? NSColor) == .systemPink }, "keyword coloured")
-        check(hasAttr(code, .foregroundColor) { ($0 as? NSColor) == .systemGray }, "comment coloured")
+        check(code.string.contains("import os"), "non-journal file shows its content as-is")
+        check(!hasAttr(code, .foregroundColor) { ($0 as? NSColor) == .systemPink },
+              "source code is NOT syntax-highlighted (left to dedicated previewers)")
 
-        // plain text (.txt) → shown as-is, NOT mis-highlighted as code
+        // Plain text (.txt) → shown as-is, never mis-coloured.
         let txt = ChangexRenderer.attributed(for: URL(fileURLWithPath: "/tmp/note.txt"),
                                              data: Data("for the type is done\n".utf8))
         check(txt.string.contains("for the type is done"), "text file shows its content")
